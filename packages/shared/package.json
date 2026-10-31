@@ -1,0 +1,11 @@
+{
+  "name": "@termometro/shared",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tipos y contratos compartidos",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "echo \"shared scaffold\""
+  }
+}

@@ -1,0 +1,16 @@
+Termómetro de Equipo
+Copyright (c) 2015-2026 [NOMBRE LEGAL DEL AUTOR]
+Copyright (c) 2015-2026 International Business Machines Corporation (IBM)
+
+This product embodies an original idea and personal creative work of the author
+(public talk circa 2015; continued personal development and engineering).
+Under the author's employment/contractual framework with IBM, IBM also holds
+ownership interests in the work. Both attributions must be preserved in all
+copies and substantial portions of the Software.
+
+Reference implementations in related private/work repositories (including
+"termometro-api" and "termometro-ui") remain separate. This open-source line
+of work does not modify those repositories; it re-implements the core team-
+climate concept without System Usability Scale (SUS) survey productization.
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file.

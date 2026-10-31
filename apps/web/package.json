@@ -1,0 +1,10 @@
+{
+  "name": "@termometro/web",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Web Termómetro de Equipo (scaffold)",
+  "scripts": {
+    "dev": "echo \"Web scaffold — port pendiente\"",
+    "build": "echo \"Web scaffold — port pendiente\""
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@termometro/api",
+  "private": true,
+  "version": "0.0.0",
+  "description": "API Termómetro de Equipo (scaffold)",
+  "scripts": {
+    "dev": "echo \"API scaffold — port pendiente\"",
+    "build": "echo \"API scaffold — port pendiente\""
+  }
+}
