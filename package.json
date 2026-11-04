@@ -1,16 +1,18 @@
 {
   "name": "termometro-de-equipo",
   "private": true,
-  "version": "0.0.0",
-  "description": "Termómetro de Equipo — diagnóstico de clima de equipos (monorepo)",
+  "version": "0.0.1",
+  "description": "Termómetro de Equipo — diagnóstico de clima de equipos",
   "license": "Apache-2.0",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "npm run build -w @termometro/shared",
     "dev:api": "npm run dev -w @termometro/api",
     "dev:web": "npm run dev -w @termometro/web",
+    "seed": "npm run seed -w @termometro/api",
     "build": "npm run build -w @termometro/shared && npm run build -w @termometro/api && npm run build -w @termometro/web"
   },
   "engines": {

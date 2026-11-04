@@ -18,3 +18,5 @@
 | `dominio-indicadores` | Fórmula del índice de clima |
 | `arquitectura-api` | Capas y port API |
 | `arquitectura-web` | Features UI y port web |
+| `context-engineering` | Contexto anonimizado, trazable y reproducible para IA |
+| `prompting-engineering` | Prompt experto, señales emocionales y plan de acción con IA |
