@@ -187,3 +187,23 @@ export interface TeamContextInput {
   status?: TeamContextStatus; confidence?: number; validFrom?: string; validUntil?: string;
   importance?: TeamContextImportance; sensitivity?: TeamContextSensitivity; influence?: TeamContextInfluence;
 }
+
+export type SentimentDirection = 'positive' | 'negative' | 'mixed' | 'neutral';
+export type EmotionalSignalLabel = 'trust' | 'belonging' | 'energy' | 'safety' | 'frustration' | 'recognition' | 'uncertainty' | 'conflict';
+export interface EmotionalSignal { label: EmotionalSignalLabel; direction: SentimentDirection; intensity: number; confidence: number; evidenceIds: string[]; interpretation: string; }
+export interface ClimateFinding { title: string; type: 'strength' | 'risk' | 'opportunity' | 'divergence'; severity: 'low' | 'medium' | 'high'; evidence: string[]; confidence: number; }
+export interface ActionItem { priority: number; objective: string; actions: string[]; ownerRole: string; horizon: '7d' | '30d' | '90d'; successMetrics: string[]; checkInQuestion: string; risks: string[]; }
+export interface AIClimateAnalysis { summary: string; emotionalSignals: EmotionalSignal[]; findings: ClimateFinding[]; actionPlan: ActionItem[]; limitations: string[]; needsHumanReview: boolean; sources: string[]; }
+export interface QuantitativeSection { id: string; name: string; score: number; weight: number; n: number; }
+export interface QuantitativeIndicator { id: string; name: string; score: number; n: number; }
+export interface QualitativeTheme { name: string; frequency: number; sentiment: SentimentDirection; evidenceIds: string[]; }
+export interface TeamClimateContext {
+  schemaVersion: 'team-climate-context.v1';
+  scope: { equipoId: string; instanciaId: string; evaluacionId: string; periodo: string };
+  sample: { expected: number; received: number; participation: number };
+  quantitative: { globalIndex: number; sections: QuantitativeSection[]; indicators: QuantitativeIndicator[] };
+  qualitative: { responsesAnalyzed: number; themes: QualitativeTheme[]; redactions: number };
+  history: Array<{ periodo: string; globalIndex: number; participation: number }>;
+  limitations: string[];
+  sources: string[];
+}
