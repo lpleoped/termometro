@@ -1,0 +1,51 @@
+.ia-workspace { max-width: 1120px; margin: 0 auto; padding: 38px 0 72px; color: #182a36; }
+.ia-workspace .ia-back { color: #42626c; font-size: .9rem; text-decoration: none; font-weight: 600; }
+.ia-heading { margin: 30px 0; max-width: 720px; }
+.ia-eyebrow { font-size: .7rem; font-weight: 750; letter-spacing: .13em; color: #477570; margin-bottom: 12px; }
+.ia-heading h1 { font-size: clamp(2rem, 4vw, 2.8rem); letter-spacing: -.04em; font-weight: 750; margin-bottom: 12px; }
+.ia-heading > p:last-child { font-size: 1.05rem; color: #64747e; line-height: 1.7; }
+.ia-card { background: #fff; border: 1px solid #dfe8e9; border-radius: 18px; padding: 28px; margin-bottom: 22px; box-shadow: 0 4px 18px #172f3e04; }
+.ia-card h2 { font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; }
+.ia-card h3 { font-size: 1rem; font-weight: 650; }
+.ia-card p { color: #64747e; line-height: 1.6; }
+.ia-control { display: flex; align-items: center; justify-content: space-between; gap: 26px; background: #f2f8f6; border-color: #cee3db; }
+.ia-control-copy { max-width: 780px; }
+.ia-control-copy > p { margin-bottom: 6px; }
+.ia-state { display: inline-block; color: #576a72; background: #e5ecec; border-radius: 6px; padding: 5px 9px; font-size: .68rem; font-weight: 750; letter-spacing: .08em; margin-bottom: 14px; }
+.ia-state.is-on { color: #176049; background: #d7efe3; }
+.ia-toggle { flex-shrink: 0; width: 66px; height: 36px; padding: 4px; border-radius: 30px; background: #87969e; border: 0; transition: background .15s; }
+.ia-toggle span { display: block; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px #0002; transition: transform .15s; }
+.ia-toggle[aria-checked="true"] { background: #18755c; }
+.ia-toggle[aria-checked="true"] span { transform: translateX(30px); }
+.ia-toggle:disabled { opacity: .5; cursor: not-allowed; }
+.ia-workspace button:focus-visible, .ia-workspace a:focus-visible { outline: 3px solid #3a8dab; outline-offset: 4px; }
+.ia-settings-grid { display: grid; grid-template-columns: minmax(0, 1fr) 285px; gap: 24px; }
+.ia-section-heading { display: flex; gap: 14px; margin-bottom: 22px; }
+.ia-section-heading p { margin: 5px 0 0; font-size: .9rem; }
+.ia-step { color: #518177; background: #f0f6f3; font-size: .75rem; font-weight: 700; padding: 8px 9px; border-radius: 9px; height: fit-content; }
+.ia-heading-actions { align-items: flex-start; flex-wrap: wrap; justify-content: space-between; }
+.ia-connection { border-top: 1px solid #e7eded; padding-top: 22px; margin-top: 22px; }
+.ia-connection-top { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.ia-connection-top h3 { margin-bottom: 5px; overflow-wrap: anywhere; }
+.ia-connection-top p { font-size: .85rem; margin-bottom: 5px; }
+.ia-endpoint { font-size: .8rem; overflow-wrap: anywhere; }
+.ia-pill { color: #245f72; background: #eaf3f7; padding: 4px 8px; border-radius: 6px; font-size: .7rem; white-space: nowrap; }
+.ia-status { font-size: .8rem; color: #667783; }
+.ia-status-active { color: #237456; }
+.ia-status-invalid { color: #a34032; }
+.ia-connection-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+.ia-delete { margin-top: 18px; padding: 18px; border-radius: 10px; background: #fff5f2; border: 1px solid #f0d6ce; }
+.ia-delete h4 { font-size: 1rem; }
+.ia-delete p { font-size: .88rem; }
+.ia-editor { border-color: #92b7b4; }
+.ia-footnote { font-size: .8rem; margin-bottom: 0; }
+.ia-sidebar .ia-card { background: #f8fafb; box-shadow: none; }
+.ia-sidebar li { color: #64747e; font-size: .88rem; margin-bottom: 10px; }
+.ia-sidebar ul { padding-left: 18px; }
+.ia-sidebar hr { border-color: #bccdce; margin: 22px 0; }
+.ia-empty { text-align: center; padding: 30px 10px; border: 1px dashed #cfdddd; border-radius: 12px; }
+.ia-notice { padding: 16px 20px; background: #edf7f1; color: #255b43; border: 1px solid #cde2d4; border-radius: 12px; margin-bottom: 20px; }
+.ia-notice-error { background: #fff2f0; border-color: #f0d0ca; color: #8d352a; }
+.ia-context-used { margin-top: 20px; padding: 16px 18px; border-radius: 12px; background: #f4f8f7; border: 1px solid #d8e7e1; color: #42626c; font-size: .86rem; }.ia-context-used strong { color: #245f55; }.ia-context-used ul { margin: 8px 0; padding-left: 18px; }.ia-context-used small { color: #64747e; }
+@media (max-width: 800px) { .ia-settings-grid { grid-template-columns: 1fr; } .ia-sidebar { order: 2; } .ia-card { padding: 20px; } .ia-workspace { padding-top: 24px; } }
+@media (prefers-reduced-motion: reduce) { .ia-toggle, .ia-toggle span { transition: none; } }

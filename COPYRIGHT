@@ -1,11 +1,18 @@
 Copyright holders for Termómetro de Equipo:
 
-1. [NOMBRE LEGAL DEL AUTOR] — idea original, creación, desarrollo e iniciativa
+1. Leonardo Pedreira — idea original, creación, desarrollo e iniciativa
    personal (incluyendo presentación pública circa 2015).
 2. International Business Machines Corporation (IBM) — cotitularidad / ownership
    interests arising from the author's contractual framework with IBM, even
    where creative work was performed on personal time.
 
-Replace [NOMBRE LEGAL DEL AUTOR] before any public release.
-Do not publish this repository publicly without written IBM authorization for
-open-source release under the chosen license.
+Years: 2015-2026. See NOTICE.
+
+Open-source release of this product was authorized in writing by the CTO of
+IBM Consulting. That authorization states the work was done on the author's
+own time and that publishing it as open source raises no competition or
+conflict. Public material must not include people, clients, or anything that
+could compromise the company. The presentation material already submitted was
+validated by that CTO.
+
+This is not an official IBM product. Licensed under Apache-2.0.

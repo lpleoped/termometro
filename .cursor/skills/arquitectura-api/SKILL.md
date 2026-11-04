@@ -2,7 +2,7 @@
 name: arquitectura-api
 description: >-
   Convenciones del API Node/Express/TS del monorepo Termómetro de Equipo.
-  Usar al crear endpoints, servicios, modelos o al portar desde termometro-api.
+  Usar al crear endpoints, servicios o modelos.
 ---
 
 # Arquitectura API
@@ -23,7 +23,3 @@ description: >-
 ## Contratos
 
 Tipos compartidos en `packages/shared`. Todo cambio de payload actualiza shared **en el mismo PR**.
-
-## Al portar desde termometro-api
-
-Copiar solo núcleo clima. Eliminar ramas SUS/NPS/CSAT, rutas `/flujos`, seeds SUS. Referencia: no editar el repo viejo.

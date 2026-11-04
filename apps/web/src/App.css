@@ -1,0 +1,440 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.custom-title {
+  font-family: 'Segoe UI', sans-serif;
+  color: #056bfa;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+body {
+  padding-top: 0px; /* Ajustá según el alto real del header */
+}
+
+/* Estilos para generación de PDF */
+.pdf-capture-mode {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.pdf-capture-mode * {
+  background-color: inherit !important;
+  color: inherit !important;
+}
+
+.pdf-capture-mode .card {
+  border: 2px solid #e5e7eb !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.pdf-capture-mode .card-header {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-bottom: 2px solid #e5e7eb !important;
+}
+
+.pdf-capture-mode .card-body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.pdf-capture-mode .chart-container {
+  background-color: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.pdf-capture-mode canvas {
+  background-color: #ffffff !important;
+}
+
+/* Asegurar que los gráficos se rendericen correctamente en PDF */
+@media print {
+  .chart-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    border: 2px solid #e5e7eb !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  .estado-actual-container {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  .d-print-none {
+    display: none !important;
+  }
+  
+  .d-print-block {
+    display: block !important;
+  }
+}
+
+/* Overlay de carga para PDF */
+#pdf-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#pdf-loading-overlay .spinner-container {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Mejoras para captura de componentes */
+.estado-actual-container {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.estado-actual-container .card {
+  border: 2px solid #e5e7eb;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.estado-actual-container .chart-container {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+/* Asegurar que los gráficos tengan fondo blanco */
+.indicadores-chart canvas,
+.indicadores-radar canvas,
+.indicadores-radar-compact canvas {
+  background-color: #ffffff !important;
+}
+
+/* Estilos específicos para PDF - Colores sólidos */
+.pdf-capture-mode .text-primary {
+  color: #0d6efd !important;
+}
+
+.pdf-capture-mode .text-muted {
+  color: #6c757d !important;
+}
+
+.pdf-capture-mode .bg-light {
+  background-color: #f8f9fa !important;
+  color: #000000 !important;
+}
+
+.pdf-capture-mode .bg-primary {
+  background-color: #0d6efd !important;
+  color: #ffffff !important;
+}
+
+.pdf-capture-mode .bg-danger {
+  background-color: #dc3545 !important;
+  color: #ffffff !important;
+}
+
+.pdf-capture-mode .bg-warning {
+  background-color: #ffc107 !important;
+  color: #000000 !important;
+}
+
+.pdf-capture-mode .bg-success {
+  background-color: #198754 !important;
+  color: #ffffff !important;
+}
+
+.pdf-capture-mode .table {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.pdf-capture-mode .table-light {
+  background-color: #f8f9fa !important;
+  color: #000000 !important;
+}
+
+.pdf-capture-mode .table-primary {
+  background-color: #cfe2ff !important;
+  color: #000000 !important;
+}
+
+/* Asegurar que los badges y elementos pequeños sean visibles */
+.pdf-capture-mode .badge {
+  background-color: #0d6efd !important;
+  color: #ffffff !important;
+  border: 1px solid #0d6efd !important;
+}
+
+.pdf-capture-mode .btn {
+  border: 2px solid !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Mejorar contraste de texto */
+.pdf-capture-mode h1, .pdf-capture-mode h2, .pdf-capture-mode h3, 
+.pdf-capture-mode h4, .pdf-capture-mode h5, .pdf-capture-mode h6 {
+  color: #000000 !important;
+}
+
+.pdf-capture-mode p, .pdf-capture-mode span, .pdf-capture-mode div {
+  color: #000000 !important;
+}
+
+/* Asegurar que los elementos de datos sean visibles */
+.pdf-capture-mode .resumen-footer {
+  background-color: #0d6efd !important;
+  color: #ffffff !important;
+}
+
+.pdf-capture-mode .seccion-color,
+.pdf-capture-mode .indicador-color {
+  border: 1px solid #000000 !important;
+}
+
+.btn-toggle-sidebar {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.btn-toggle-sidebar:hover {
+  background: #e7f1ff;
+  box-shadow: 0 4px 16px rgba(13,110,253,0.10);
+}
+
+.btn-toggle-sidebar-minimal {
+  box-shadow: 0 2px 8px rgba(37,99,235,0.10);
+  background: #2563eb !important;
+  color: #fff !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transition: background 0.2s, box-shadow 0.2s, left 0.3s, right 0.3s, top 0.3s;
+}
+.btn-toggle-sidebar-minimal:hover, .btn-toggle-sidebar-minimal:focus {
+  background: #1d4ed8 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.18);
+}
+.btn-toggle-sidebar-minimal.collapsed {
+  left: 0 !important;
+  right: auto !important;
+  top: 16px !important;
+  border-radius: 50% !important;
+  background: #2563eb !important;
+  color: #fff !important;
+  box-shadow: 2px 0 12px rgba(37,99,235,0.12);
+}
+
+.dashboard-sidebar.collapsed {
+  width: 0px !important;
+  min-width: 0px !important;
+  max-width: 0px !important;
+  border: none !important;
+}
+
+@media (max-width: 767px) {
+  .dashboard-sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 1050;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.08);
+    transition: width 0.3s, left 0.3s;
+  }
+  .dashboard-sidebar.collapsed {
+    left: -280px !important;
+    width: 0px !important;
+    min-width: 0px !important;
+    max-width: 0px !important;
+    border: none !important;
+  }
+  .dashboard-main {
+    margin-left: 0 !important;
+    transition: margin-left 0.3s;
+  }
+  .btn-toggle-sidebar-minimal.collapsed {
+    left: 8px !important;
+    top: 16px !important;
+    border-radius: 50% !important;
+    background: #2563eb !important;
+    color: #fff !important;
+    box-shadow: 2px 0 12px rgba(37,99,235,0.12);
+    font-size: 20px;
+    padding: 0 !important;
+  }
+}
+
+.btn-menu-toggle {
+  background: none !important;
+  border: none !important;
+  color: #2563eb !important;
+  font-size: 22px !important;
+  padding: 4px !important;
+  margin-left: 8px !important;
+  border-radius: 4px !important;
+  transition: background 0.2s;
+  outline: none !important;
+  cursor: pointer;
+}
+.btn-menu-toggle:hover, .btn-menu-toggle:focus {
+  background: #e7f1ff !important;
+}
+
+.equipo-sidebar.collapsed .equipos-list,
+.equipo-sidebar.collapsed .sidebar-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.equipo-sidebar.collapsed .equipo-item {
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  margin: 0 auto 8px auto !important;
+  padding: 0 !important;
+}
+.equipo-sidebar.collapsed .equipo-header {
+  justify-content: center !important;
+  background: none !important;
+  border: none !important;
+}
+.equipo-sidebar.collapsed .fw-medium,
+.equipo-sidebar.collapsed .small,
+.equipo-sidebar.collapsed .flex-grow-1 {
+  display: none !important;
+}
+
+.dashboard-sidebar.collapsed {
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
+}
+
+@media (max-width: 767px) {
+  .dashboard-sidebar {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+  }
+  .dashboard-sidebar.collapsed {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+  }
+}
+
+.btn-hamburger-fixed {
+  position: fixed !important;
+  top: 20px !important;
+  left: 20px !important;
+  z-index: 2001 !important;
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.12) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 28px !important;
+  color: #2563eb !important;
+  transition: background 0.2s, box-shadow 0.2s, border 0.2s !important;
+  cursor: pointer !important;
+}
+.btn-hamburger-fixed.open {
+  border: 2px solid #2563eb !important;
+  background: #fff !important;
+  color: #2563eb !important;
+}
+.btn-hamburger-fixed:hover, .btn-hamburger-fixed:focus {
+  background: #e7f1ff !important;
+  color: #2563eb !important;
+  box-shadow: 0 8px 24px rgba(37,99,235,0.18) !important;
+}
+
+@media (max-width: 767px) {
+  .btn-hamburger-fixed {
+    top: 12px !important;
+    left: 12px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 28px !important;
+  }
+}
+
+.dashboard-sidebar {
+  transition: width 0.3s, min-width 0.3s, max-width 0.3s !important;
+}
+
+.mini-sidebar {
+  background: #fff !important;
+  border-right: 1px solid #e5e7eb !important;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.08) !important;
+  width: 56px !important;
+  min-width: 56px !important;
+  max-width: 56px !important;
+  height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  z-index: 1051 !important;
+  transition: width 0.3s !important;
+}
+.btn-menu-toggle-big {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.12) !important;
+  color: #2563eb !important;
+  font-size: 28px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-top: 8px !important;
+  transition: background 0.2s, box-shadow 0.2s, border 0.2s !important;
+}
+.btn-menu-toggle-big:hover, .btn-menu-toggle-big:focus {
+  background: #e7f1ff !important;
+  color: #2563eb !important;
+  box-shadow: 0 8px 24px rgba(37,99,235,0.18) !important;
+}

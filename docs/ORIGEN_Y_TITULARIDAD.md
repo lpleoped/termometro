@@ -6,10 +6,6 @@ La idea de este producto nació en el autor. Fue presentada en una charla públi
 
 Hoy el autor retoma esa línea como producto **open source** en limpio: **Termómetro de Equipo**, centrado en el diagnóstico de clima / estado de equipos (evaluaciones ponderadas, índice tipo termómetro, participación, histórico, plan de acción).
 
-## Qué no es este producto
-
-No es un producto de encuestas **SUS** (System Usability Scale). Esa línea, cuando exista, vivirá en un repositorio/producto aparte. Los repositorios de trabajo previos que mezclaron SUS con el núcleo de clima se conservan **intactos** como referencia histórica y no se modifican en esta transformación.
-
 ## Titularidad (doble atribución)
 
 1. **Autoría e idea:** todo el trabajo creativo, la idea, la creación y el desarrollo se reconocen como del autor (iniciativa y tiempo personal en el origen e iteración conceptual).
@@ -21,13 +17,21 @@ Ambas verdades deben coexistir en `LICENSE`, `NOTICE`, `COPYRIGHT` y en este doc
 
 | Repo | Rol |
 |------|-----|
-| `termometro-api` | Referencia de implementación backend (no modificar en esta línea OSS) |
-| `termometro-ui` | Referencia de implementación frontend (no modificar en esta línea OSS) |
+| `termometro-api` | Referencia de implementación backend (no modificar en esta línea) |
+| `termometro-ui` | Referencia de implementación frontend (no modificar en esta línea) |
 
-Este monorepo (`termometro-de-equipo`) es la línea nueva, en limpio, sin SUS.
+Este monorepo (`termometro-de-equipo`) es la línea de producto actual e independiente.
 
 ## Publicación open source
 
-Antes de hacer público el repositorio hace falta **autorización escrita de IBM** respecto de open source y de la licencia elegida (Apache-2.0 en este árbol). Hasta entonces el desarrollo puede continuar en privado con la misma atribución.
+El **CTO de IBM Consulting** autorizó por escrito que Termómetro de Equipo se publique como open source. Texto operativo de ese permiso:
+
+> Sobre el termómetro, me parece bárbaro que lo hagas open source, sin problema. Lo hiciste en tu tiempo, es tuyo, no hay competencia, conflicto, etc con que lo hagas open.
+>
+> Sobre esto (mostrar un video de tu presentación blureando contenido confidencial), mientras no haya gente, clientes, ni nada que nos pueda comprometer como empresa no veo problema.
+
+Ese material de la presentación ya fue validado por el mismo CTO. Un material nuevo sigue bajo la misma condición: sin gente, sin clientes y sin nada que comprometa a la empresa.
+
+La licencia de este árbol es **Apache-2.0**. El permiso autoriza hacerlo open source y no nombra otra licencia. Siguen las dos atribuciones de `NOTICE` y `COPYRIGHT`: Leonardo Pedreira e IBM. Esto no presenta el producto como producto oficial de IBM.
 
 Ver skill personal `legal-open-source-ibm`.

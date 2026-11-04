@@ -1,19 +1,29 @@
 {
   "name": "termometro-de-equipo",
   "private": true,
-  "version": "0.0.0",
-  "description": "Termómetro de Equipo — diagnóstico de clima de equipos (monorepo)",
+  "version": "0.0.1",
+  "description": "Termómetro de Equipo — diagnóstico de clima de equipos",
   "license": "Apache-2.0",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "npm run build -w @termometro/shared",
+    "setup:dev": "node scripts/setup-dev.mjs",
+    "dev": "npm run setup:dev && concurrently --kill-others-on-fail --names API,WEB --prefix name \"npm run dev:api\" \"npm run dev:web\"",
     "dev:api": "npm run dev -w @termometro/api",
     "dev:web": "npm run dev -w @termometro/web",
-    "build": "npm run build -w @termometro/shared && npm run build -w @termometro/api && npm run build -w @termometro/web"
+    "seed": "npm run seed -w @termometro/api",
+    "build": "npm run build -w @termometro/shared && npm run build -w @termometro/api && npm run build -w @termometro/web",
+    "start:api": "npm run start -w @termometro/api",
+    "preview:web": "npm run preview -w @termometro/web",
+    "start": "concurrently --kill-others-on-fail --names API,WEB --prefix name \"npm run start:api\" \"npm run preview:web\""
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
   }
 }

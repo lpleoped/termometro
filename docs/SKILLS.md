@@ -14,7 +14,21 @@
 | Skill | Rol |
 |-------|-----|
 | `producto-termometro` | Visión y límites del monorepo |
-| `anti-sus-en-termometro` | Rechazo de contaminación SUS |
 | `dominio-indicadores` | Fórmula del índice de clima |
-| `arquitectura-api` | Capas y port API |
-| `arquitectura-web` | Features UI y port web |
+| `arquitectura-api` | Capas API |
+| `arquitectura-web` | Features UI |
+| `qa-huecos-flujo` | Auditoría E2E: huecos funcionales, handoffs, primer uso |
+| `ux-ui-adopcion` | UX/UI fácil de usar, fácil de adoptar, sin fricción |
+| `evaluacion-psicologia` | Plantillas de clima psicológico del equipo |
+| `evaluacion-liderazgo` | Plantillas de liderazgo percibido por el equipo |
+
+## Docs de producto
+
+| Doc | Contenido |
+|-----|-----------|
+| [CORRIDA_LOCAL.md](./CORRIDA_LOCAL.md) | Cómo levantar la demo |
+| [SMOKE_CHECKLIST.md](./SMOKE_CHECKLIST.md) | Verificación login → dashboard → responder |
+| [INDICADORES.md](./INDICADORES.md) | Índice de clima |
+| [API.md](./API.md) | Endpoints |
+| [PLAN_INDEPENDENCIA.md](./PLAN_INDEPENDENCIA.md) | Alcance del monorepo |
+| [ORIGEN_Y_TITULARIDAD.md](./ORIGEN_Y_TITULARIDAD.md) | Autoría e IBM |

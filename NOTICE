@@ -1,5 +1,5 @@
 Termómetro de Equipo
-Copyright (c) 2015-2026 [NOMBRE LEGAL DEL AUTOR]
+Copyright (c) 2015-2026 Leonardo Pedreira
 Copyright (c) 2015-2026 International Business Machines Corporation (IBM)
 
 This product embodies an original idea and personal creative work of the author
@@ -9,8 +9,13 @@ ownership interests in the work. Both attributions must be preserved in all
 copies and substantial portions of the Software.
 
 Reference implementations in related private/work repositories (including
-"termometro-api" and "termometro-ui") remain separate. This open-source line
-of work does not modify those repositories; it re-implements the core team-
-climate concept without System Usability Scale (SUS) survey productization.
+"termometro-api" and "termometro-ui") remain separate. This repository is the
+independent product line for team-climate diagnosis and does not modify those
+reference repositories.
+
+Open-source publication of this product was authorized in writing by the CTO
+of IBM Consulting, provided public materials do not include people, clients,
+or anything that could compromise the company. This is not an official IBM
+product and IBM trademarks are not used as an endorsement.
 
 Licensed under the Apache License, Version 2.0. See the LICENSE file.

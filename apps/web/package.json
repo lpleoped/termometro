@@ -2,9 +2,36 @@
   "name": "@termometro/web",
   "private": true,
   "version": "0.0.0",
-  "description": "Web Termómetro de Equipo (scaffold)",
+  "description": "Web Termómetro de Equipo",
+  "type": "module",
   "scripts": {
-    "dev": "echo \"Web scaffold — port pendiente\"",
-    "build": "echo \"Web scaffold — port pendiente\""
+    "dev": "vite",
+    "build": "tsc -p tsconfig.app.json --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@termometro/shared": "*",
+    "animate.css": "^4.1.1",
+    "aos": "^2.3.4",
+    "axios": "^1.8.4",
+    "bootstrap": "^5.3.3",
+    "chart.js": "^4.4.8",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "jwt-decode": "^4.0.0",
+    "react": "^19.0.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.4.1",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/aos": "^3.0.7",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react-swc": "^3.8.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0"
   }
 }

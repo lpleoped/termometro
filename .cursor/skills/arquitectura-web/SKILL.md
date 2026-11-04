@@ -2,7 +2,7 @@
 name: arquitectura-web
 description: >-
   Convenciones del frontend React/Vite/TS del monorepo Termómetro de Equipo.
-  Usar al crear pantallas, servicios HTTP o al portar desde termometro-ui.
+  Usar al crear pantallas o servicios HTTP.
 ---
 
 # Arquitectura Web
@@ -21,8 +21,4 @@ Features por dominio: `auth`, `equipos`, `evaluaciones`, `dashboard`, `responder
 
 ## UI del núcleo
 
-Índice tipo termómetro, detalle por sección, gráficos de indicadores, histórico, plan. **Sin** componentes SUS.
-
-## Al portar desde termometro-ui
-
-Traer flujo backoffice clima + Responder Likert. No traer `SUS*`, enunciados SUS ni bloque de flujos. No editar el repo de referencia.
+Índice tipo termómetro, detalle por sección, gráficos de indicadores, histórico, plan.
