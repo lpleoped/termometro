@@ -15,7 +15,7 @@ router.post('/instancias', authMiddleware, (req: Request, res: Response) => {
   crearInstanciaEvaluacion(req, res);
 });
 
-router.get('/instancias/:instanciaId', (req: Request, res: Response) => {
+router.get('/instancias/:instanciaId', authMiddleware, (req: Request, res: Response) => {
   obtenerInstanciaPorId(req, res);
 });
 router.get('/r/:token', (req: Request, res: Response) => { obtenerRondaPublica(req, res); });

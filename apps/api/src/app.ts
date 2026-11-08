@@ -101,11 +101,16 @@ if (fs.existsSync(path.join(webDist, 'index.html'))) {
   app.get('/', (_req, res) => res.status(503).send('No se encontró la interfaz de Termómetro. Reinstalá la aplicación o compilá la web.'));
 }
 
+const KNOWN_PLACEHOLDERS = new Set([
+  'generar-un-secreto-aleatorio-de-al-menos-32-caracteres',
+  'generar-otro-secreto-aleatorio-de-al-menos-32-caracteres',
+]);
+
 const iniciarServidor = async () => {
   try {
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET debe tener al menos 32 caracteres. En desarrollo ejecutá "npm run setup:dev"; en producción configurá la variable de entorno.');
-    if (!process.env.AI_CREDENTIAL_SECRET || process.env.AI_CREDENTIAL_SECRET.length < 32) throw new Error('AI_CREDENTIAL_SECRET debe tener al menos 32 caracteres. En desarrollo ejecutá "npm run setup:dev"; en producción configurá la variable de entorno.');
-    if (process.env.NODE_ENV === 'production' && (!process.env.INTEGRATION_ENCRYPTION_KEY || process.env.INTEGRATION_ENCRYPTION_KEY.length < 32)) throw new Error('INTEGRATION_ENCRYPTION_KEY debe tener al menos 32 caracteres en producción.');
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || KNOWN_PLACEHOLDERS.has(process.env.JWT_SECRET)) throw new Error('JWT_SECRET debe tener al menos 32 caracteres y no puede ser un valor de ejemplo. En desarrollo ejecutá "npm run setup:dev"; en producción configurá la variable de entorno.');
+    if (!process.env.AI_CREDENTIAL_SECRET || process.env.AI_CREDENTIAL_SECRET.length < 32 || KNOWN_PLACEHOLDERS.has(process.env.AI_CREDENTIAL_SECRET)) throw new Error('AI_CREDENTIAL_SECRET debe tener al menos 32 caracteres y no puede ser un valor de ejemplo. En desarrollo ejecutá "npm run setup:dev"; en producción configurá la variable de entorno.');
+    if (process.env.NODE_ENV === 'production' && (!process.env.INTEGRATION_ENCRYPTION_KEY || process.env.INTEGRATION_ENCRYPTION_KEY.length < 32 || KNOWN_PLACEHOLDERS.has(process.env.INTEGRATION_ENCRYPTION_KEY))) throw new Error('INTEGRATION_ENCRYPTION_KEY debe tener al menos 32 caracteres en producción y no puede ser un valor de ejemplo.');
     if (isLocalStorage()) {
       initializeLocalStorage();
       console.log(`Almacenamiento local preparado en ${dataDirectory()}`);

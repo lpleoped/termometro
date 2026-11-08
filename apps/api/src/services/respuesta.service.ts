@@ -23,6 +23,10 @@ interface CrearRespuestaInput {
 export const crearRespuestaService = async (data: CrearRespuestaInput): Promise<IRespuesta> => {
   const { instanciaEvaluacionId, tokenPublico, respuestas, comentariosAbiertos, identidad, consentimientoIdentificado, idempotencyKey } = data;
 
+  if (tokenPublico !== undefined && typeof tokenPublico !== 'string') throw new Error('Token público inválido');
+  if (instanciaEvaluacionId !== undefined && typeof instanciaEvaluacionId !== 'string') throw new Error('ID de instancia inválido');
+  if (tokenPublico && !/^[A-Za-z0-9_-]{40,64}$/.test(tokenPublico)) throw new Error('Formato de token público inválido');
+
   const instancia = tokenPublico ? await roundRepository().findByPublicToken(tokenPublico) : instanciaEvaluacionId ? await roundRepository().findById(instanciaEvaluacionId) : null;
   if (!instancia) throw new Error('Instancia de evaluación no encontrada');
   if (instancia.estado !== 'activa') throw new Error('La ronda está cerrada');

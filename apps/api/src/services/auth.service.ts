@@ -9,6 +9,17 @@ const getJwtSecret = () => {
   return secret;
 };
 const SALT_ROUNDS = 10;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_BYTES = 72;
+
+const validatePassword = (password: string) => {
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
+  }
+  if (Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES) {
+    throw new Error('La contraseña es demasiado larga');
+  }
+};
 
 export const registrarUsuarioService = async ({
   nombre,
@@ -19,11 +30,13 @@ export const registrarUsuarioService = async ({
   email: string;
   password: string;
 }) => {
+  validatePassword(password);
+  
   const repository = userRepository();
   const normalizedEmail = email.trim().toLowerCase();
   const existente = await repository.findByEmail(normalizedEmail);
   if (existente) {
-    throw new Error('El correo ya está registrado.');
+    throw new Error('No se pudo completar el registro');
   }
 
   const hash = await bcrypt.hash(password, SALT_ROUNDS);

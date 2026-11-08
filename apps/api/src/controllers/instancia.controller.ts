@@ -33,9 +33,10 @@ export const crearInstanciaEvaluacion = async (
   }
 };
 
-export const obtenerInstanciaPorId = async (req: Request, res: Response): Promise<Response> => {
+export const obtenerInstanciaPorId = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
-    const instancia = await obtenerInstanciaPorIdService(String(req.params.instanciaId));
+    if (!req.user?.id) return res.status(401).json({ error: 'Usuario no autenticado' });
+    const instancia = await obtenerInstanciaPorIdService(String(req.params.instanciaId), req.user.id);
     return res.status(200).json(instancia);
   } catch (error: any) {
     return res.status(404).json({ error: error.message || 'No se pudo obtener la instancia' });

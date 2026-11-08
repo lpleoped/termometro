@@ -52,12 +52,27 @@ export const crearInstanciaEvaluacionService = async (
   }) as unknown as Promise<IInstanciaEvaluacion>;
 };
 
-export const obtenerInstanciaPorIdService = async (id: string) => {
+export const obtenerInstanciaPorIdService = async (id: string, userId: string) => {
   const instancia = await roundRepository().findById(id);
 
   if (!instancia) {
     throw new Error('Instancia no encontrada');
   }
+
+  const [evaluacion, equipo] = await Promise.all([
+    evaluationRepository().findById(String(instancia.evaluacion)),
+    instancia.equipo
+      ? (await import('../repositories/team.repository')).teamRepository().findOwnedActive(String(instancia.equipo), userId)
+      : null,
+  ]);
+  const evaluationOwned = Boolean(evaluacion && String(evaluacion.creadoPor) === userId);
+  const teamOwned = Boolean(equipo);
+  const hasTeam = Boolean(instancia.equipo);
+  
+  if (!evaluationOwned || (hasTeam && !teamOwned)) {
+    throw new Error('No tienes permiso para acceder a esta instancia');
+  }
+
   if (instancia.estado !== 'activa') {
     throw new Error('La instancia no está disponible');
   }
