@@ -2,7 +2,7 @@ import { featureRepository } from '../repositories/feature.repository';
 import { toSafeTeamContext } from './privacy-transformer.service';
 
 const MAX_ITEMS = 20;
-const MAX_CHARS = 16000;
+const MAX_CHARS = Number(process.env.AI_MAX_CONTEXT_CHARS) || 32000; // Increased from 16000 for detailed context
 const importancePriority: Record<string, number> = { critical: 30, relevant: 20, informative: 10 };
 const influencePriority: Record<string, number> = { precondition: 30, action: 28, interpretation_and_action: 26, risk: 24, group_action: 22, interpretation: 15, do_not_act_directly: 8 };
 

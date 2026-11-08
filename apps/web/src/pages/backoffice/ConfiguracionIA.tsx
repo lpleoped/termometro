@@ -9,7 +9,7 @@ const empty: AIProviderInput = { name: '', kind: 'openai-compatible', endpoint: 
 const statusLabel = { active: 'Generación verificada', invalid: 'Revisar conexión', unverified: 'Pendiente de prueba' };
 
 export default function ConfiguracionIA() {
-  const [settings, setSettings] = useState<AISettings>({ enabled: false, defaultProviderId: null });
+  const [settings, setSettings] = useState<AISettings>({ enabled: false, defaultProviderId: null, limits: {} });
   const [providers, setProviders] = useState<AIProviderResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
@@ -19,6 +19,7 @@ export default function ConfiguracionIA() {
   const [form, setForm] = useState<AIProviderInput>(empty);
   const [editor, setEditor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showLimits, setShowLimits] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
 
@@ -39,9 +40,14 @@ export default function ConfiguracionIA() {
   };
 
   const changeSettings = (next: AISettings) => run('settings', async () => {
-    setSettings(await putIASettings(next));
+    const updated = await putIASettings(next);
+    setSettings(updated);
     setNotice(next.enabled ? 'IA activada. Todas las funciones usarán la conexión predeterminada.' : 'IA apagada. Tus conexiones y análisis siguen guardados.');
   });
+  
+  const changeLimits = (limits: Partial<AISettings['limits']>) => {
+    changeSettings({ ...settings, limits: { ...settings.limits, ...limits } });
+  };
   const openEditor = (provider?: AIProviderResponse) => {
     setDeleting(null); setError(''); setNotice('');
     setEditor(provider?.id ?? 'new');
@@ -123,6 +129,104 @@ export default function ConfiguracionIA() {
               <div className="col-12"><label htmlFor="ia-key" className="form-label">Clave API</label><input id="ia-key" className="form-control" type="password" autoComplete="new-password" value={form.apiKey ?? ''} onChange={e => setForm({ ...form, apiKey: e.target.value })} /><p className="form-text">{editor === 'new' ? 'Ingresá la clave de tu proveedor. Algunos servicios locales no requieren una.' : 'Dejala vacía para conservar la clave guardada.'}</p></div>
             </div><div className="d-flex gap-2 mt-4"><button className="btn btn-primary" type="submit">{busy === 'save' ? 'Guardando…' : 'Guardar conexión'}</button><button className="btn btn-outline-secondary" type="button" onClick={() => { setEditor(null); setForm({ ...empty }); }}>Cancelar</button></div></fieldset></form>
           </section>}
+          <section className="ia-card" aria-labelledby="limits-title">
+            <div className="ia-section-heading">
+              <span className="ia-step">03</span>
+              <div>
+                <h2 id="limits-title">Límites y presupuesto</h2>
+                <p>Controla el tamaño de entrada y la frecuencia de análisis.</p>
+              </div>
+            </div>
+            <button
+              className="btn btn-outline-secondary btn-sm mb-3"
+              onClick={() => setShowLimits(!showLimits)}
+            >
+              {showLimits ? 'Ocultar límites avanzados' : 'Mostrar límites avanzados'}
+            </button>
+            {showLimits && (
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label htmlFor="limit-questionnaire" className="form-label">
+                    Límite de entrada para cuestionarios (caracteres)
+                  </label>
+                  <input
+                    id="limit-questionnaire"
+                    type="number"
+                    className="form-control"
+                    min="1000"
+                    step="1000"
+                    placeholder="24000 (predeterminado)"
+                    value={settings.limits?.maxQuestionnaireInput ?? ''}
+                    disabled={!!busy}
+                    onChange={(e) => changeLimits({ maxQuestionnaireInput: e.target.value ? Number(e.target.value) : undefined })}
+                  />
+                  <p className="form-text">
+                    Máximo de caracteres para la descripción al generar un cuestionario con IA.
+                  </p>
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="limit-qualitative" className="form-label">
+                    Límite por respuesta cualitativa (caracteres)
+                  </label>
+                  <input
+                    id="limit-qualitative"
+                    type="number"
+                    className="form-control"
+                    min="500"
+                    step="500"
+                    placeholder="4000 (predeterminado)"
+                    value={settings.limits?.maxQualitativeText ?? ''}
+                    disabled={!!busy}
+                    onChange={(e) => changeLimits({ maxQualitativeText: e.target.value ? Number(e.target.value) : undefined })}
+                  />
+                  <p className="form-text">
+                    Máximo de caracteres por respuesta cualitativa en análisis.
+                  </p>
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="limit-context" className="form-label">
+                    Límite de contexto del equipo (caracteres)
+                  </label>
+                  <input
+                    id="limit-context"
+                    type="number"
+                    className="form-control"
+                    min="5000"
+                    step="5000"
+                    placeholder="32000 (predeterminado)"
+                    value={settings.limits?.maxContextChars ?? ''}
+                    disabled={!!busy}
+                    onChange={(e) => changeLimits({ maxContextChars: e.target.value ? Number(e.target.value) : undefined })}
+                  />
+                  <p className="form-text">
+                    Máximo de caracteres de contexto del equipo incluido en análisis.
+                  </p>
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="limit-analyses" className="form-label">
+                    Límite de análisis por hora
+                  </label>
+                  <input
+                    id="limit-analyses"
+                    type="number"
+                    className="form-control"
+                    min="1"
+                    step="1"
+                    placeholder="20 (predeterminado)"
+                    value={settings.limits?.maxAnalysesPerHour ?? ''}
+                    disabled={!!busy}
+                    onChange={(e) => changeLimits({ maxAnalysesPerHour: e.target.value ? Number(e.target.value) : undefined })}
+                  />
+                  <p className="form-text">
+                    Máximo de análisis de IA que podés solicitar por hora.
+                  </p>
+                </div>
+              </div>
+            )}
+            <p className="ia-footnote mt-3">
+              Los límites predeterminados son adecuados para la mayoría de los casos. Aumentalos si necesitás analizar encuestas muy largas o contextos extensos. Los valores vacíos usan los predeterminados del sistema.
+            </p>
+          </section>
         </div>
         <aside className="ia-sidebar"><div className="ia-card"><p className="ia-eyebrow">UNA CONFIGURACIÓN, TODOS TUS EQUIPOS</p><h2>Vos decidís cuándo</h2><p>Activar habilita las funciones. Cada generación requiere una acción tuya.</p><hr /><h3>¿Dónde se usa?</h3><ul><li>Análisis de resultados e histórico.</li><li>Sugerencias para planes de acción.</li><li>Pruebas de tus conexiones.</li></ul><hr /><p className="ia-footnote">Estas preferencias son generales para tu cuenta. Las claves de otras cuentas no se comparten.</p></div><Link className="ia-back" to="/backoffice/ia">Ir a análisis con IA →</Link></aside>
       </div>

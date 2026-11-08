@@ -1,11 +1,13 @@
-import { app, BrowserWindow, dialog, Menu, safeStorage } from 'electron';
+import { app, BrowserWindow, dialog, Menu, safeStorage, ipcMain } from 'electron';
 import { installationSecrets } from './installation-secrets';
 import { checkForUpdates } from './updates';
 import { prepareVersion } from './version-recovery';
 import { spawn, type ChildProcess } from 'node:child_process';
+import { exec } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
+import os from 'node:os';
 
 const PORT = 3210;
 let apiProcess: ChildProcess | undefined;
@@ -13,6 +15,80 @@ let mainWindow: BrowserWindow | undefined;
 const hasInstanceLock = app.requestSingleInstanceLock();
 if (!hasInstanceLock) app.quit();
 app.on('second-instance', () => { mainWindow?.restore(); mainWindow?.focus(); });
+
+interface NetworkStatus {
+  profileType: 'Private' | 'Public' | 'Domain' | 'Unknown';
+  lanHealthy: boolean;
+  lanAddress: string | null;
+}
+
+async function getNetworkProfile(): Promise<string> {
+  if (process.platform !== 'win32') return 'Unknown';
+  
+  return new Promise((resolve) => {
+    exec(
+      'powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-NetConnectionProfile | Where-Object { $_.IPv4Connectivity -eq \'Internet\' -or $_.IPv4Connectivity -eq \'LocalNetwork\' } | Select-Object -First 1 -ExpandProperty NetworkCategory"',
+      { timeout: 5000, windowsHide: true },
+      (error, stdout) => {
+        if (error) {
+          resolve('Unknown');
+          return;
+        }
+        const category = stdout.trim();
+        // NetworkCategory values: 0=Public, 1=Private, 2=Domain
+        if (category === 'Public' || category === '0') resolve('Public');
+        else if (category === 'Private' || category === '1') resolve('Private');
+        else if (category === 'Domain' || category === '2') resolve('Domain');
+        else resolve('Unknown');
+      }
+    );
+  });
+}
+
+function getLanAddress(): string | null {
+  const interfaces = os.networkInterfaces();
+  for (const [name, items] of Object.entries(interfaces)) {
+    // Skip virtual interfaces
+    if (/^(vEthernet|docker|wsl|vmnet|vboxnet|utun|tun|tap)/i.test(name)) continue;
+    
+    for (const item of items || []) {
+      if (item.family === 'IPv4' && !item.internal && !item.address.startsWith('169.254.')) {
+        return item.address;
+      }
+    }
+  }
+  return null;
+}
+
+async function checkLanHealth(): Promise<boolean> {
+  const lanAddress = getLanAddress();
+  if (!lanAddress) return false;
+  
+  return new Promise((resolve) => {
+    const request = http.get(`http://${lanAddress}:${PORT}/api/health`, { timeout: 3000 }, (response) => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+    request.on('error', () => resolve(false));
+    request.on('timeout', () => {
+      request.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function getNetworkStatus(): Promise<NetworkStatus> {
+  const [profileType, lanHealthy] = await Promise.all([
+    getNetworkProfile(),
+    checkLanHealth()
+  ]);
+  
+  return {
+    profileType: profileType as NetworkStatus['profileType'],
+    lanHealthy,
+    lanAddress: getLanAddress(),
+  };
+}
 
 function apiRoot() {
   return app.isPackaged
@@ -95,6 +171,11 @@ async function showDiagnostics() {
 app.on('ready', () => {
   app.setAppUserModelId('com.termometrodeequipo.desktop');
   Menu.setApplicationMenu(Menu.buildFromTemplate([{ label: 'Ayuda', submenu: [{ label: 'Buscar actualizaciones…', click: () => void checkForUpdates(mainWindow) }, { label: 'Diagnóstico técnico', click: () => void showDiagnostics() }, { type: 'separator' }, { role: 'about' }] }]));
+  
+  // IPC handler for network status check from renderer
+  ipcMain.handle('get-network-status', async () => {
+    return await getNetworkStatus();
+  });
 });
 app.on('before-quit', () => { if (apiProcess && !apiProcess.killed) apiProcess.kill(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

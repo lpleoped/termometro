@@ -24,12 +24,15 @@ import { buildHistoricalMemory, HISTORICAL_ANALYSIS_INSTRUCTIONS, assertGrounded
 const PROMPT_VERSION = 'v3-history';
 const analysisAttempts = new Map<string, number[]>();
 const ANALYSIS_WINDOW_MS = 60 * 60 * 1000;
-const MAX_ANALYSES_PER_HOUR = 20;
+const MAX_ANALYSES_PER_HOUR = Number(process.env.AI_MAX_ANALYSES_PER_HOUR) || 20;
+const MAX_QUALITATIVE_TEXT = Number(process.env.AI_MAX_QUALITATIVE_TEXT) || 4000; // Increased from 2000 for detailed responses
 
 const consumeAnalysisBudget = (userId: string) => {
   const now = Date.now();
   const recent = (analysisAttempts.get(userId) || []).filter((time) => now - time < ANALYSIS_WINDOW_MS);
-  if (recent.length >= MAX_ANALYSES_PER_HOUR) throw new AIRequestError('AI_RATE_LIMIT', 'Alcanzaste el límite de análisis por hora. Esperá antes de reintentar.', 429);
+  if (recent.length >= MAX_ANALYSES_PER_HOUR) {
+    throw new AIRequestError('AI_RATE_LIMIT', `Alcanzaste el límite de ${MAX_ANALYSES_PER_HOUR} análisis por hora. Esperá antes de reintentar, o aumentá el límite en Configuración → IA → Límites o con la variable AI_MAX_ANALYSES_PER_HOUR.`, 429);
+  }
   recent.push(now); analysisAttempts.set(userId, recent);
 };
 
@@ -59,7 +62,20 @@ const fuentesLegibles = (fuentes: string[], indicadores: Array<{ id: string; tex
 export const generateAnalysis = async (userId: string, input: {
   instanciaId: string; includeHistorico?: boolean;
 }) => {
-  consumeAnalysisBudget(userId);
+  // Get user-specific limits from settings or fall back to env/defaults
+  const { getAISettings } = await import('./ai-settings.service');
+  const settings = await getAISettings(userId);
+  const maxAnalysesPerHour = settings.limits?.maxAnalysesPerHour ?? MAX_ANALYSES_PER_HOUR;
+  const maxQualitativeText = settings.limits?.maxQualitativeText ?? MAX_QUALITATIVE_TEXT;
+  
+  // Custom budget check with user-specific limit
+  const now = Date.now();
+  const recent = (analysisAttempts.get(userId) || []).filter((time) => now - time < ANALYSIS_WINDOW_MS);
+  if (recent.length >= maxAnalysesPerHour) {
+    throw new AIRequestError('AI_RATE_LIMIT', `Alcanzaste el límite de ${maxAnalysesPerHour} análisis por hora. Esperá antes de reintentar, o aumentá el límite en Configuración → IA → Límites o con la variable AI_MAX_ANALYSES_PER_HOUR.`, 429);
+  }
+  recent.push(now); analysisAttempts.set(userId, recent);
+  
   await assertInstanceOwner(userId, input.instanciaId);
   const provider = await resolveAIProvider(userId);
   const round = await roundRepository().findById(input.instanciaId);
@@ -79,10 +95,10 @@ export const generateAnalysis = async (userId: string, input: {
     (row.respuestas || []).forEach((answer: any, answerIndex: number) => {
       if (typeof answer.texto !== 'string' || !answer.texto.trim()) return;
       const meta = indicatorMeta.get(String(answer.indicadorId));
-      qualitativeResponses.push({ id: `q${responseIndex}-${answerIndex}`, question: meta?.question || String(answer.indicadorId), section: meta?.section || 'Sin seccion', text: answer.texto.slice(0, 2000) });
+      qualitativeResponses.push({ id: `q${responseIndex}-${answerIndex}`, question: meta?.question || String(answer.indicadorId), section: meta?.section || 'Sin seccion', text: answer.texto.slice(0, maxQualitativeText) });
     });
     for (const [key, value] of Object.entries(row.comentariosAbiertos || {})) {
-      if (typeof value === 'string' && value.trim()) qualitativeResponses.push({ id: `c${responseIndex}-${key}`, question: key, section: 'Comentarios abiertos', text: value.slice(0, 2000) });
+      if (typeof value === 'string' && value.trim()) qualitativeResponses.push({ id: `c${responseIndex}-${key}`, question: key, section: 'Comentarios abiertos', text: value.slice(0, maxQualitativeText) });
     }
   });
   const history = input.includeHistorico === false ? null : await getHistoricoPorEquipoYEvaluacion(equipoId, evaluacionId, userId);

@@ -190,6 +190,12 @@ export interface AIAnalysisRequest {
 export interface AISettings {
   enabled: boolean;
   defaultProviderId: string | null;
+  limits?: {
+    maxQuestionnaireInput?: number;
+    maxQualitativeText?: number;
+    maxContextChars?: number;
+    maxAnalysesPerHour?: number;
+  };
 }
 
 export const AI_ANALYSIS_SCHEMA_VERSION = 'team-climate-analysis.v1';

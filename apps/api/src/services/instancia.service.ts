@@ -91,6 +91,29 @@ export const obtenerInstanciaPorIdService = async (id: string, userId: string) =
   };
 };
 
+const VIRTUAL_INTERFACE_PATTERNS = [
+  /^vEthernet/i,        // Hyper-V
+  /^docker/i,           // Docker
+  /^br-/,               // Docker bridges
+  /^vboxnet/i,          // VirtualBox
+  /^vmnet/i,            // VMware
+  /^utun/i,             // macOS VPN tunnels
+  /^tun/i,              // VPN tunnels
+  /^tap/i,              // VPN taps
+  /^wsl/i,              // WSL
+  /^lo/i,               // Loopback (already filtered by internal flag)
+];
+
+const isVirtualOrUnreachableInterface = (name: string, address: string): boolean => {
+  // Filter by interface name patterns
+  if (VIRTUAL_INTERFACE_PATTERNS.some(pattern => pattern.test(name))) return true;
+  
+  // Filter link-local addresses (169.254.x.x)
+  if (address.startsWith('169.254.')) return true;
+  
+  return false;
+};
+
 export const obtenerEnlacesPublicosService = async (id: string, userId: string) => {
   const instancia = await roundRepository().findById(id);
   if (!instancia) throw new Error('Instancia no encontrada');
@@ -98,15 +121,50 @@ export const obtenerEnlacesPublicosService = async (id: string, userId: string) 
   else await assertEvaluationOwner(userId, String(instancia.evaluacion));
   if (!instancia.tokenPublico || instancia.estado !== 'activa') throw new Error('La ronda no está disponible');
   const port = Number(process.env.PORT) || 3000;
-  const hosts = new Set<string>(['localhost']);
-  for (const interfaces of Object.values(os.networkInterfaces())) for (const item of interfaces || []) {
-    if (item.family === 'IPv4' && !item.internal) hosts.add(item.address);
+  
+  interface HostInfo {
+    address: string;
+    interfaceName: string;
   }
-  return { token: instancia.tokenPublico, urls: [...hosts].map((host) => `http://${host}:${port}/r/${instancia.tokenPublico}`) };
+  
+  const hosts: HostInfo[] = [];
+  
+  for (const [name, interfaces] of Object.entries(os.networkInterfaces())) {
+    for (const item of interfaces || []) {
+      if (item.family === 'IPv4' && !item.internal) {
+        if (!isVirtualOrUnreachableInterface(name, item.address)) {
+          hosts.push({ address: item.address, interfaceName: name });
+        }
+      }
+    }
+  }
+  
+  // Always include localhost as fallback
+  if (hosts.length === 0) {
+    hosts.push({ address: 'localhost', interfaceName: 'loopback' });
+  }
+  
+  return {
+    token: instancia.tokenPublico,
+    urls: hosts.map(host => ({
+      url: `http://${host.address}:${port}/r/${instancia.tokenPublico}`,
+      interface: host.interfaceName,
+      address: host.address,
+    })),
+  };
+};
+
+const isValidPublicToken = (token: string): boolean => {
+  // UUID format (legacy): 8-4-4-4-12 with hyphens (36 chars)
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // Base64url format (current): 40-64 chars, alphanumeric plus underscore and hyphen
+  const base64urlPattern = /^[A-Za-z0-9_-]{40,64}$/;
+  
+  return uuidPattern.test(token) || base64urlPattern.test(token);
 };
 
 export const obtenerRondaPublicaService = async (token: string) => {
-  if (!/^[A-Za-z0-9_-]{40,}$/.test(token)) throw new Error('Token inválido');
+  if (!isValidPublicToken(token)) throw new Error('Token inválido');
   const instancia = await roundRepository().findByPublicToken(token);
   if (!instancia || instancia.estado !== 'activa') throw new Error('Ronda no disponible');
   const evaluacion = await evaluationRepository().findById(String(instancia.evaluacion));
