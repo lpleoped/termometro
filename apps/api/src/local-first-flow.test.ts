@@ -43,7 +43,7 @@ async function run() {
     const registro = await registrarUsuarioService({ nombre: 'Facilitadora', email: 'Auth@Example.com', password: 'secreto-seguro' });
     assert.ok(registro.token);
     assert.equal(registro.usuario.email, 'auth@example.com');
-    await assert.rejects(() => registrarUsuarioService({ nombre: 'Duplicada', email: 'auth@example.com', password: 'otro-secreto' }), /ya está registrado/);
+    await assert.rejects(() => registrarUsuarioService({ nombre: 'Duplicada', email: 'auth@example.com', password: 'otro-secreto' }), /No se pudo completar el registro/);
     assert.ok(await loginUsuarioService({ email: 'AUTH@example.com', password: 'secreto-seguro' }));
     await assert.rejects(() => loginUsuarioService({ email: 'auth@example.com', password: 'incorrecta' }), /Credenciales inválidas/);
     const perfil: any = await obtenerPerfilService({ user: { id: String(registro.usuario.id) } } as any);
@@ -69,7 +69,7 @@ async function run() {
     const rondaIndividual: any = await crearInstanciaEvaluacionService({ evaluacionId: 'evaluacion-1', alcance: 'individual', activadoEn: new Date('2026-02-01T12:00:00.000Z'), cantidadEsperada: 1 }, 'usuario-1');
     assert.match(String(rondaIndividual.tokenPublico), /^[A-Za-z0-9_-]{43}$/);
     assert.equal((await obtenerRondaPublicaService(String(rondaIndividual.tokenPublico))).titulo, 'Clima');
-    assert.equal(String((await obtenerInstanciaPorIdService(String(rondaIndividual._id))).evaluacionId), 'evaluacion-1');
+    assert.equal(String((await obtenerInstanciaPorIdService(String(rondaIndividual._id), 'usuario-1')).evaluacionId), 'evaluacion-1');
     await assertInstanceOwner('usuario-1', String(rondaIndividual._id));
     await assert.rejects(() => assertInstanceOwner('otro-usuario', String(rondaIndividual._id)), /permiso/);
     const primeraRespuesta: any = await crearRespuestaService({ tokenPublico: String(rondaIndividual.tokenPublico), idempotencyKey: 'respuesta-demo-2026-01', respuestas: [{ indicadorId: 'apoyo', valor: 5 }, { indicadorId: 'friccion', valor: 1 }, { indicadorId: 'comentario', texto: 'Flujo por repositorios' }] });

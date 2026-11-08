@@ -15,8 +15,17 @@ for (const line of existing.split(/\r?\n/)) {
 if (!values.get('PORT')) values.set('PORT', '3000');
 if (!values.get('STORAGE_DRIVER')) values.set('STORAGE_DRIVER', 'json');
 if (values.get('STORAGE_DRIVER') !== 'json' && !values.get('MONGO_URI')) values.set('MONGO_URI', 'mongodb://localhost:27017/termometro-de-equipo');
+
+const KNOWN_PLACEHOLDERS = new Set([
+  'generar-un-secreto-aleatorio-de-al-menos-32-caracteres',
+  'generar-otro-secreto-aleatorio-de-al-menos-32-caracteres',
+]);
+
 for (const name of ['JWT_SECRET', 'AI_CREDENTIAL_SECRET', 'INTEGRATION_ENCRYPTION_KEY']) {
-  if (!values.get(name) || values.get(name).length < 32) values.set(name, crypto.randomBytes(32).toString('base64url'));
+  const current = values.get(name);
+  if (!current || current.length < 32 || KNOWN_PLACEHOLDERS.has(current)) {
+    values.set(name, crypto.randomBytes(32).toString('base64url'));
+  }
 }
 
 const known = new Set(values.keys());

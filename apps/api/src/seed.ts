@@ -11,6 +11,10 @@ import { crearRespuestas } from './seed/respuestas';
 
 async function runSeed() {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Error: No se puede ejecutar seed en entorno de producción');
+      process.exit(1);
+    }
     await conectarDB();
     console.log('Conectado a MongoDB — seed clima');
 

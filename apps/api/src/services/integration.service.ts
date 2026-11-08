@@ -35,8 +35,15 @@ const assertStoredSecretIsProtected = (value: string) => {
 
 export const listConnections = async (userId: string) => (await featureRepository('integrationConnections').list({ userId }, { provider: 1, createdAt: 1 })).map(c => ({ id: c._id, provider: c.provider, name: c.name, status: c.status, metadata: c.metadata, createdAt: c.createdAt }));
 
+const validateSlackWebhook = (url: string) => {
+  if (!/^https:\/\/hooks\.slack\.com\/services\/[A-Z0-9]{9,12}\/[A-Z0-9]{9,12}\/[A-Za-z0-9]{24}$/.test(url)) {
+    throw new Error('URL de webhook de Slack inválida. Debe ser https://hooks.slack.com/services/...');
+  }
+};
+
 export const createConnection = async (userId: string, input: { provider: IntegrationProvider; name: string; secret: string; metadata?: Record<string, unknown> }) => {
   if (!['slack', 'monday'].includes(input.provider) || !input.name?.trim() || !input.secret?.trim()) throw new Error('Proveedor, nombre y credencial son obligatorios.');
+  if (input.provider === 'slack') validateSlackWebhook(input.secret.trim());
   const row = await featureRepository('integrationConnections').insert(newFeature('integrationConnections', { userId, provider: input.provider, name: input.name.trim(), secret: protect(input.secret.trim()), metadata: input.metadata || {} }));
   return { id: row._id, provider: row.provider, name: row.name, status: row.status, metadata: row.metadata, createdAt: row.createdAt };
 };
@@ -56,7 +63,10 @@ export const updateConnection = async (userId: string, id: string, input: { name
   const row = await repository.find({ _id: id, userId });
   if (!row) throw new Error('Conexión no encontrada.');
   if (input.name !== undefined) { if (typeof input.name !== 'string' || !input.name.trim() || input.name.length > 100) throw new Error('Nombre inválido.'); row.name = input.name.trim(); }
-  if (input.secret?.trim()) row.secret = protect(input.secret.trim());
+  if (input.secret?.trim()) {
+    if (row.provider === 'slack') validateSlackWebhook(input.secret.trim());
+    row.secret = protect(input.secret.trim());
+  }
   if (input.metadata) row.metadata = input.metadata;
   row.status = 'invalid'; row.updatedAt = new Date();
   const saved = await repository.save(row);
@@ -67,8 +77,11 @@ export const testConnection = async (userId: string, id: string) => {
   const row = await featureRepository('integrationConnections').find({ _id: id, userId }); if (!row) throw new Error('Conexión no encontrada.');
   const secret = reveal(row.secret);
   assertStoredSecretIsProtected(row.secret);
-    if (row.provider === 'slack') { await axios.post(secret, { text: 'Conexión verificada desde Termómetro.' }); }
-  else { await axios.post('https://api.monday.com/v2', { query: 'query { me { id name } }' }, { headers: { Authorization: secret, 'Content-Type': 'application/json' } }); }
+    if (row.provider === 'slack') {
+    validateSlackWebhook(secret);
+    await axios.post(secret, { text: 'Conexión verificada desde Termómetro.' }, { timeout: 10000, maxContentLength: 1024 * 1024, maxBodyLength: 1024 * 1024, maxRedirects: 0 });
+  }
+  else { await axios.post('https://api.monday.com/v2', { query: 'query { me { id name } }' }, { headers: { Authorization: secret, 'Content-Type': 'application/json' }, timeout: 10000, maxContentLength: 1024 * 1024, maxBodyLength: 1024 * 1024 }); }
   row.status = 'active'; await featureRepository('integrationConnections').save(row); return { ok: true };
 };
 
@@ -97,7 +110,8 @@ export const publishAction = async (userId: string, actionId: string, connection
   assertStoredSecretIsProtected(connection.secret);
   let externalId = ''; let url = '';
   if (connection.provider === 'slack') {
-    const response = await axios.post(secret, { text: `*Acción de Termómetro*\n${action.descripcion}` });
+    validateSlackWebhook(secret);
+    const response = await axios.post(secret, { text: `*Acción de Termómetro*\n${action.descripcion}` }, { timeout: 10000, maxContentLength: 1024 * 1024, maxBodyLength: 1024 * 1024, maxRedirects: 0 });
     externalId = response.data?.ts || 'webhook';
   } else {
     const round = await assertInstanceOwner(userId, String(action.instanciaEvaluacion));
