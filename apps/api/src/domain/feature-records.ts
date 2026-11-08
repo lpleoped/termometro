@@ -101,12 +101,7 @@ export interface AISettingsRecord extends FeatureRecord {
   userId: string;
   enabled: boolean;
   defaultProviderId: string | null;
-  limits?: {
-    maxQuestionnaireInput?: number;
-    maxQualitativeText?: number;
-    maxContextChars?: number;
-    maxAnalysesPerHour?: number;
-  };
+  budgetPreset?: 'pequeño' | 'estándar' | 'grande' | 'muy-grande' | 'sin-límite';
 }
 export interface FeatureRecords {
  aiProviders: IAIProvider; aiSettings: AISettingsRecord; aiAnalyses: IAIAnalysis;
