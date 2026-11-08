@@ -2,28 +2,40 @@
 
 Diagnóstico de **clima / estado de equipos**: evaluaciones Likert por secciones ponderadas, índice 0–100, participación, histórico y plan de acción.
 
-Monorepo independiente (API + web + shared).
+Monorepo open source (API + web + desktop + shared).
+
+## Licencia
+
+Licensed under the [Apache License, Version 2.0](LICENSE).
+
+```
+Copyright 2024-2026 Leonardo Pedreira
+Copyright 2024-2026 International Business Machines Corporation (IBM)
+```
+
+Atribución completa: [`NOTICE`](NOTICE), [`COPYRIGHT`](COPYRIGHT).  
+Origen y titularidad: [docs/ORIGEN_Y_TITULARIDAD.md](docs/ORIGEN_Y_TITULARIDAD.md).
+
+Esto **no** es un producto oficial de IBM.
 
 ## Origen y titularidad
 
-La idea y el trabajo creativo son de Leonardo Pedreira (charla pública ~2015; desarrollo e iniciativa personal). Por marco contractual con **IBM**, IBM también figura como cotitular. El CTO de IBM Consulting autorizó por escrito publicarlo como open source, con la condición de no incluir gente, clientes ni material que comprometa a la empresa. Detalle: [docs/ORIGEN_Y_TITULARIDAD.md](docs/ORIGEN_Y_TITULARIDAD.md), `NOTICE`, `COPYRIGHT`, `LICENSE` (Apache-2.0).
+Idea y desarrollo de Leonardo Pedreira en **2024–2025**, en tiempo personal. Presentada en **2025** en IBM como **iniciativa personal** ante más de 100 personas, como proyecto de IA aplicada en desarrollo de software. Por marco contractual, IBM figura también como cotitular. El CTO de IBM Consulting autorizó por escrito el open source (“lo hiciste en tu tiempo, es tuyo”), con la condición de no incluir gente, clientes ni material que comprometa a la empresa.
 
 ## Estructura
 
 ```
-apps/api       → API (Express + TS + Mongo / JSON local)
-apps/web       → UI (React + Vite + TS)
-apps/desktop   → Empaquetado instalable (Electron)
-packages/shared → tipos y contratos compartidos
+apps/api        → API (Express + TS + Mongo / JSON local)
+apps/web        → UI (React + Vite + TS)
+apps/desktop    → Empaquetado instalable (Electron)
+packages/shared → Tipos y contratos compartidos
 ```
-
-Open source autorizado (Apache-2.0). Atribución y titularidad: [docs/ORIGEN_Y_TITULARIDAD.md](docs/ORIGEN_Y_TITULARIDAD.md), `NOTICE`, `COPYRIGHT`, `LICENSE`.
 
 ## Estado y seguridad
 
-Este proyecto está en estado MVP/beta. Puede utilizarse para demostraciones y desarrollo, pero todavía no debe presentarse como una plataforma enterprise auditada.
+Proyecto en estado MVP/beta: apto para demos y desarrollo; todavía no debe presentarse como plataforma enterprise auditada.
 
-Las API keys de proveedores IA se cargan por la interfaz y se almacenan cifradas en el backend. Nunca deben colocarse en variables del frontend, `localStorage` ni en el repositorio. Los secretos del despliegue deben configurarse mediante variables seguras o un secret manager. Detalle: [SECURITY.md](SECURITY.md).
+Las API keys de proveedores de IA se cargan por la interfaz y se almacenan cifradas en el backend. No deben ir al frontend, a `localStorage` ni al repositorio. Los secretos de despliegue van en variables de entorno o un secret manager. Detalle: [SECURITY.md](SECURITY.md).
 
 ## Correr en local
 
@@ -39,4 +51,4 @@ npm run seed      # datos demo, opcional
 npm run dev       # API + web juntos
 ```
 
-Login demo: `test@test.com` / `123123`
+Usuario demo del seed (solo desarrollo local): `test@test.com` / `123123`
