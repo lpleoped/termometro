@@ -1,0 +1,8 @@
+{
+  "name": ".runtime",
+  "private": true,
+  "description": "Runtime-only dependencies for packaged desktop app",
+  "dependencies": {
+    "electron-updater": "6.8.12"
+  }
+}
