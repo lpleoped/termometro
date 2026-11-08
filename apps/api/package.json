@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc -p tsconfig.json",
-    "test:context": "npm run build && node dist/context-engineering.test.js && node dist/ai-completion.test.js && node dist/dashboard-quality.test.js && node dist/acciones-lifecycle.test.js && node dist/authorization.test.js && node dist/eliminar-usuario.test.js && node dist/security-hardening.test.js",
+    "test:context": "npm run build && node dist/context-engineering.test.js && node dist/ai-completion.test.js && node dist/dashboard-quality.test.js && node dist/acciones-lifecycle.test.js && node dist/authorization.test.js && node dist/eliminar-usuario.test.js && node dist/security-hardening.test.js && node dist/respuesta-public-token-required.test.js",
     "test:storage": "npm run build && node dist/storage/json-storage.test.js",
     "test:portable": "npm run build && node dist/storage/portable.test.js",
     "test:parity": "npm run build -w @termometro/shared && npm run build && node --test tests/features-parity.test.cjs",
