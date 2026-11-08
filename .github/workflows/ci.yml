@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: API storage tests
+        run: npm run test:storage -w @termometro/api
+
+      - name: API local-flow tests
+        run: npm run test:local-flow -w @termometro/api
+
+      - name: API repositories tests
+        run: npm run test:repositories -w @termometro/api
+
+      - name: Desktop unit tests
+        run: npm run test -w @termometro/desktop

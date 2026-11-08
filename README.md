@@ -37,6 +37,14 @@ Proyecto en estado MVP/beta: apto para demos y desarrollo; todavía no debe pres
 
 Las API keys de proveedores de IA se cargan por la interfaz y se almacenan cifradas en el backend. No deben ir al frontend, a `localStorage` ni al repositorio. Los secretos de despliegue van en variables de entorno o un secret manager. Detalle: [SECURITY.md](SECURITY.md).
 
+## Descargas y releases
+
+La distribución profesional de la app Windows es por **GitHub Releases** (tag `vX.Y.Z`).
+
+- Instaladores: https://github.com/lpleoped/termometro/releases
+- Proceso de publicación: [RELEASE.md](RELEASE.md)
+- Push a `main` corre CI; solo un tag publica el instalador
+
 ## Correr en local
 
 **Requisitos:** Node ≥ 20. MongoDB solo si usás `STORAGE_DRIVER=mongo`.
