@@ -7,7 +7,7 @@ export default function Header() {
       <div className="container d-flex justify-content-between align-items-center py-2">
         {/* Logo y nombre */}
           <img src={logo} width="40" height="40" className="me-2" alt="Logo" />
-          <strong className="text-primary">Termómetro de Equipo</strong>
+      <strong className="text-primary">Termómetro</strong>
       </div>
     </nav>
   )

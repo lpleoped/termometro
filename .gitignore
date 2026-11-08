@@ -12,4 +12,20 @@ coverage/
 *.tsbuildinfo
 .vscode/
 .idea/
-.cursor/hooks/state/
+
+# Agente / editor — no forma parte del producto runtime
+.cursor/
+AGENTS.md
+
+# Docs internas / de planificación — no usadas por el programa
+# Se publica solo el doc de titularidad (obligatorio OSS)
+docs/*
+!docs/ORIGEN_Y_TITULARIDAD.md
+
+# Empaquetado desktop local (artefactos grandes)
+apps/desktop/release/
+apps/desktop/release-*/
+apps/desktop/.runtime/
+
+# Build suelto de Electron en la raíz (no es fuente)
+/main.js

@@ -110,8 +110,10 @@ function leerBorrador(
 }
 
 export default function ResponderEvaluacion() {
-  const { instanciaId } = useParams();
+  const { token } = useParams();
+  const instanciaId = token || '';
   const [titulo, setTitulo] = useState('');
+  const [evaluadoNombre, setEvaluadoNombre] = useState('');
   const [preguntas, setPreguntas] = useState<Pregunta[]>([]);
   const [paso, setPaso] = useState(0);
   const [valores, setValores] = useState<Record<string, number>>({});
@@ -139,15 +141,13 @@ export default function ResponderEvaluacion() {
 
     const cargar = async () => {
       try {
-        const instancia = await api.get(`/instancias/${instanciaId}`);
-        const evaluacionId = idDe(instancia.data?.evaluacionId);
-        if (!evaluacionId) throw new Error('sin cuestionario');
-        const evaluacion = await api.get(`/evaluaciones/${evaluacionId}`);
+        const instancia = await api.get(`/r/${instanciaId}`);
         if (cancelado) return;
-        const lista = preguntasDe(evaluacion.data as Evaluacion);
+        const lista = preguntasDe(instancia.data as Evaluacion);
         const borrador = leerBorrador(instanciaId, lista);
-        const nombre = typeof evaluacion.data?.titulo === 'string' ? evaluacion.data.titulo.trim() : '';
+        const nombre = typeof instancia.data?.titulo === 'string' ? instancia.data.titulo.trim() : '';
         setTitulo(nombre);
+        setEvaluadoNombre(typeof instancia.data?.evaluadoNombre === 'string' ? instancia.data.evaluadoNombre.trim() : '');
         setModoRespuesta(instancia.data?.modoRespuesta === 'identificada' ? 'identificada' : 'anonima');
         setPreguntas(lista);
         setPaso(borrador.paso);
@@ -191,7 +191,7 @@ export default function ResponderEvaluacion() {
     setErrorEnvio(false);
     try {
       await api.post('/respuestas', {
-        instanciaEvaluacionId: instanciaId,
+        tokenPublico: instanciaId,
         respuestas: preguntas.map((item) => ({
           indicadorId: item.id,
           ...(item.tipo === 'cuantitativo' ? { valor: valores[item.id] } : { texto: textos[item.id]?.trim() }),
@@ -277,9 +277,10 @@ export default function ResponderEvaluacion() {
 
         {fase === 'inicio' && (
           <div className="evaluation-panel py-4 px-3 px-sm-4">
-            <p className="evaluation-eyebrow mb-2">Termómetro de Equipo</p>
+      <p className="evaluation-eyebrow mb-2">Termómetro</p>
             <h1 className="h3 mb-3">{titulo || 'Evaluación del equipo'}</h1>
             <p className="lead mb-4">Queremos conocer cómo estás viviendo este momento del equipo.</p>
+            {evaluadoNombre && <p className="mb-3">Esta evaluación es sobre <strong>{evaluadoNombre}</strong>.</p>}
             <div className="evaluation-meta mb-4" aria-label="Resumen de la evaluación">
               <span>{preguntas.length} {preguntas.length === 1 ? 'pregunta' : 'preguntas'}</span>
               <span>Menos de 5 minutos</span>

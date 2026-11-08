@@ -4,6 +4,8 @@ import { createProvider, deleteProvider, getProviderForUser, listProviders, test
 import { generateAnalysis, listAnalyses } from '../services/ai-analysis.service';
 import { aiError } from '../services/ai-completion';
 import { getAISettings, saveAISettings } from '../services/ai-settings.service';
+import { generateQuestionnaire } from '../services/questionnaire-generation.service';
+import { validRecordId } from '../domain/feature-records';
 
 const userId = (req: AuthRequest) => req.user?.id || '';
 
@@ -37,7 +39,7 @@ export const deleteAIProvider = async (req: AuthRequest, res: Response) => {
 export const postAIAnalysis = async (req: AuthRequest, res: Response) => {
   try {
     const { instanciaId, includeHistorico } = req.body;
-    if (typeof instanciaId !== 'string' || !/^[a-f0-9]{24}$/i.test(instanciaId) || (includeHistorico !== undefined && typeof includeHistorico !== 'boolean')) return res.status(400).json({ error: 'Elegí una ronda válida.' });
+    if (!validRecordId(instanciaId) || (includeHistorico !== undefined && typeof includeHistorico !== 'boolean')) return res.status(400).json({ error: 'Elegí una ronda válida.' });
     const result = await generateAnalysis(userId(req), { instanciaId, includeHistorico });
     res.json(result);
   } catch (error: unknown) {
@@ -57,5 +59,16 @@ export const putSettings = async (req: AuthRequest, res: Response) => {
 };
 
 export const getAIAnalyses = async (req: AuthRequest, res: Response) => {
-  res.json(await listAnalyses(userId(req), typeof req.query.instanciaId === 'string' ? req.query.instanciaId : undefined));
+  try { res.json(await listAnalyses(userId(req), typeof req.query.instanciaId === 'string' ? req.query.instanciaId : undefined)); }
+  catch (error) { res.status(404).json({ error: error instanceof Error ? error.message : 'No se pudieron leer los análisis.' }); }
+};
+
+export const postAIQuestionnaire = async (req: AuthRequest, res: Response) => {
+  try {
+    const { role, request } = req.body || {};
+    res.json(await generateQuestionnaire(userId(req), { role, request }));
+  } catch (error: unknown) {
+    const issue = aiError(error);
+    res.status(issue.status).json({ error: issue.message, code: issue.code, ...(issue.diagnostic ? { diagnostic: issue.diagnostic } : {}) });
+  }
 };

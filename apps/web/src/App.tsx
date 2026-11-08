@@ -9,7 +9,7 @@ import AOS from 'aos'
 import useChartPrintFix from './hooks/useChartPrintFix'
 
 // Lazy loading de componentes para mejor performance
-const HomePublica = lazy(() => import('./pages/public/HomePublica'))
+const FirstRunGate = lazy(() => import('./components/FirstRunGate'))
 const AltaEvaluacion = lazy(() => import('./pages/backoffice/AltaEvaluacion'))
 const ConsultaEvaluacion = lazy(() => import('./pages/backoffice/Evaluacion'))
 const LecturaCuestionario = lazy(() => import('./pages/backoffice/LecturaCuestionario'))
@@ -66,10 +66,11 @@ function App() {
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>
                 {/* Rutas públicas */}
-                <Route path="/" element={<HomePublica />} />
+                <Route path="/" element={<FirstRunGate />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/registro" element={<Register />} />
-                <Route path="/responder/:instanciaId" element={<Responder />} />
+                <Route path="/responder/:token" element={<Responder />} />
+                <Route path="/r/:token" element={<Responder />} />
                 
                 {/* Rutas del backoffice */}
                 <Route path="/backoffice">

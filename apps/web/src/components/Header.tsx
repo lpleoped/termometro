@@ -63,7 +63,7 @@ export default function Header() {
             className="me-2" 
             alt="Logo Termómetro" 
           />
-          <span className="fw-semibold text-primary">Termómetro de Equipo</span>
+        <span className="fw-semibold text-primary">Termómetro</span>
         </Link>
 
         {/* Botón hamburguesa para móvil */}

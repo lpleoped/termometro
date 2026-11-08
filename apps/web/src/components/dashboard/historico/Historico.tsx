@@ -4,6 +4,8 @@ import { getDashboardHistorico } from '../../../services/dashboardService';
 import { getInstanciaById } from '../../../services/instanciaService';
 import GraficoHistorico from './GraficoHistorico';
 import TablaHistorico from './TablaHistorico';
+import type { HistoricoSeguimiento } from '@termometro/shared';
+import HistorialAprendizaje from './HistorialAprendizaje';
 
 interface Props {
   instanciaId: string;
@@ -23,6 +25,8 @@ interface Serie {
   equipo: string;
   cuestionario: string;
   puntos: PuntoSerie[];
+  seguimiento: HistoricoSeguimiento[];
+  comparabilidad: { valida: boolean; razon: string; instrumentoVersion: string; reglas: string[] };
 }
 
 function esNoEncontrado(error: unknown): boolean {
@@ -97,6 +101,8 @@ const Historico = ({ instanciaId }: Props) => {
               recibida: punto.participacion.recibida,
             },
           })),
+          comparabilidad: data.comparabilidad,
+          seguimiento: data.seguimiento || [],
         });
       })
       .catch((error: unknown) => {
@@ -155,7 +161,7 @@ const Historico = ({ instanciaId }: Props) => {
   return (
     <div className="d-flex flex-column gap-4">
       <div>
-        <h2 className="fw-bold mb-1">¿Subió o bajó?</h2>
+        <h2 className="fw-bold mb-1">Qué cambió y qué se aplicó</h2>
         <p className="text-muted mb-3">
           {serie.equipo}. {serie.cuestionario}
         </p>
@@ -166,6 +172,9 @@ const Historico = ({ instanciaId }: Props) => {
             Respondieron {actual.participacion.recibida} de {actual.participacion.esperada}.
           </p>
         )}
+        <div className="alert alert-info mt-3 mb-0">
+          <strong>Comparabilidad:</strong> {serie.comparabilidad.razon}
+        </div>
       </div>
       {serie.puntos.length > 0 && (
         <>
@@ -173,6 +182,7 @@ const Historico = ({ instanciaId }: Props) => {
           <TablaHistorico puntos={serie.puntos} instanciaId={instanciaId} />
         </>
       )}
+      <HistorialAprendizaje key={instanciaId} rondas={serie.seguimiento} instanciaId={instanciaId} />
       <div>
         <Link className="btn btn-primary" to={volver}>
           Volver al termómetro

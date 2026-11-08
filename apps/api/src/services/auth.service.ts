@@ -1,7 +1,7 @@
-import { Usuario } from '../models/Usuario';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { userRepository } from '../repositories/user.repository';
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -19,14 +19,15 @@ export const registrarUsuarioService = async ({
   email: string;
   password: string;
 }) => {
-  const existente = await Usuario.findOne({ email });
+  const repository = userRepository();
+  const normalizedEmail = email.trim().toLowerCase();
+  const existente = await repository.findByEmail(normalizedEmail);
   if (existente) {
     throw new Error('El correo ya está registrado.');
   }
 
   const hash = await bcrypt.hash(password, SALT_ROUNDS);
-  const nuevoUsuario = new Usuario({ nombre, email, password: hash });
-  await nuevoUsuario.save();
+  const nuevoUsuario = await repository.insert({ nombre, email: normalizedEmail, password: hash });
 
   const token = jwt.sign({ id: nuevoUsuario._id }, getJwtSecret(), { expiresIn: '7d' });
 
@@ -47,7 +48,7 @@ export const loginUsuarioService = async ({
   email: string;
   password: string;
 }) => {
-  const usuario = await Usuario.findOne({ email });
+  const usuario = await userRepository().findByEmail(email);
   if (!usuario) {
     throw new Error('Credenciales inválidas.');
   }
@@ -63,9 +64,8 @@ export const loginUsuarioService = async ({
 export const obtenerPerfilService = async (req: AuthRequest) => {
   const userId = req.user?.id;
   if (!userId) throw new Error('Usuario no autenticado');
-
-  const usuario = await Usuario.findById(userId).select('-password');
+  const usuario = await userRepository().findById(userId);
   if (!usuario) throw new Error('Usuario no encontrado');
-
-  return usuario;
+  const { password: _password, ...perfil } = usuario;
+  return perfil;
 };

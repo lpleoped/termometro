@@ -13,8 +13,9 @@ export const buildContext = (input: {
   quantitative: TeamClimateContext['quantitative'];
   history?: TeamClimateContext['history'];
   qualitative?: RawQualitativeResponse[];
+  qualitativeSuppressedReason?: string;
 }): TeamClimateContext => {
-  const responses = input.qualitative ?? [];
+  const responses = (input.qualitative ?? []).filter(response => response.text.trim());
   const redacted = responses.map((response) => ({ ...response, text: redactText(response.text) }));
   const grouped = new Map<string, { texts: string[]; ids: string[] }>();
   for (const response of redacted) {
@@ -24,14 +25,21 @@ export const buildContext = (input: {
   }
   const themes = [...grouped.entries()]
     .filter(([, group]) => group.texts.length >= 3)
-    .map(([name, group]) => ({ name, frequency: group.texts.length, sentiment: 'neutral' as const, evidenceIds: group.ids }));
+    .map(([name, group]) => ({
+      name: redactText(name),
+      frequency: group.texts.length,
+      sentiment: 'neutral' as const,
+      evidenceIds: group.ids,
+    }));
   const limitations = [
     ...(input.sample.received < 3 ? ['Muestra insuficiente para interpretación cualitativa agregada.'] : []),
     ...(responses.length !== themes.reduce((total, theme) => total + theme.frequency, 0) ? ['Se ocultaron grupos cualitativos con menos de 3 respuestas.'] : []),
+    ...(input.sample.expected > 0 && input.sample.participation < 0.5 ? ['ParticipaciÃ³n baja: interpretar los resultados como seÃ±ales de quienes respondieron.'] : []),
+    ...(input.qualitativeSuppressedReason ? [input.qualitativeSuppressedReason] : []),
   ];
   const context: TeamClimateContext = {
     schemaVersion: 'team-climate-context.v1', scope: input.scope, sample: input.sample,
-    quantitative: input.quantitative, qualitative: { responsesAnalyzed: redacted.length, themes, redactions: responses.length - redacted.filter((item, index) => item.text === responses[index].text).length },
+    quantitative: input.quantitative, qualitative: { responsesAnalyzed: redacted.length, responses: redacted, themes, redactions: responses.length - redacted.filter((item, index) => item.text === responses[index].text).length },
     history: input.history ?? [], limitations, sources: ['dashboard', 'responses', 'history'],
   };
   return context;

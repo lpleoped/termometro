@@ -13,7 +13,8 @@ for (const line of existing.split(/\r?\n/)) {
 }
 
 if (!values.get('PORT')) values.set('PORT', '3000');
-if (!values.get('MONGO_URI')) values.set('MONGO_URI', 'mongodb://localhost:27017/termometro-de-equipo');
+if (!values.get('STORAGE_DRIVER')) values.set('STORAGE_DRIVER', 'json');
+if (values.get('STORAGE_DRIVER') !== 'json' && !values.get('MONGO_URI')) values.set('MONGO_URI', 'mongodb://localhost:27017/termometro-de-equipo');
 for (const name of ['JWT_SECRET', 'AI_CREDENTIAL_SECRET', 'INTEGRATION_ENCRYPTION_KEY']) {
   if (!values.get(name) || values.get(name).length < 32) values.set(name, crypto.randomBytes(32).toString('base64url'));
 }

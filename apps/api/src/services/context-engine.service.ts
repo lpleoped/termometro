@@ -1,4 +1,4 @@
-import { TeamContextItem } from '../models/TeamContextItem';
+import { featureRepository } from '../repositories/feature.repository';
 import { toSafeTeamContext } from './privacy-transformer.service';
 
 const MAX_ITEMS = 20;
@@ -50,6 +50,6 @@ export const selectContextCandidates = (candidates: Array<any>, now = new Date()
  * completos ni elementos obsoletos: el presupuesto es parte del contrato.
  */
 export const selectTeamContext = async (teamId: string, now = new Date()): Promise<TeamContextSelection> => {
-  const candidates = await TeamContextItem.find({ teamId }).lean();
+  const candidates = await featureRepository('teamContextItems').list({ teamId });
   return selectContextCandidates(candidates, now);
 };

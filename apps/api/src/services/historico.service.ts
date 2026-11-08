@@ -1,82 +1,53 @@
-import type { HistoricoResponse } from '@termometro/shared';
-import { InstanciaEvaluacion } from '../models/InstanciaEvaluacion';
-import { Respuesta } from '../models/Respuesta';
-import { Evaluacion } from '../models/Evaluacion';
-import { Equipo } from '../models/Equipo';
+import type { HistoricoResponse, HistoricoSeguimiento, AIAnalysisResponse, AccionPlanResponse } from '@termometro/shared';
+import { getEstadoActualDashboard } from './dashboard.service';
+import { evaluationRepository } from '../repositories/evaluation.repository';
+import { historyAttachmentsRepository } from '../repositories/history-attachments.repository';
+import { roundRepository } from '../repositories/round.repository';
+import { teamRepository } from '../repositories/team.repository';
 
 /** Misma fórmula de índice que el dashboard de estado actual. */
 export const getHistoricoPorEquipoYEvaluacion = async (
   equipoId: string,
   evaluacionId: string,
+  userId?: string,
 ): Promise<HistoricoResponse> => {
-  const instancias = await InstanciaEvaluacion.find({
-    equipo: equipoId,
-    evaluacion: evaluacionId,
-  }).sort({ activadoEn: 1 });
+  const instancias = await roundRepository().listByTeamAndEvaluation(equipoId, evaluacionId);
 
-  const equipo = await Equipo.findById(equipoId);
-  const evaluacion: any = await Evaluacion.findById(evaluacionId);
+  const equipo = await teamRepository().findById(equipoId);
+  const evaluacion = await evaluationRepository().findById(evaluacionId);
 
   if (!equipo || !evaluacion) throw new Error('Equipo o evaluación no encontrada');
 
-  const historico: any[] = [];
+  const historico: HistoricoResponse['historico'] = [];
+  const seguimiento: HistoricoSeguimiento[] = [];
+  const visibles: string[] = [];
 
   for (const instancia of instancias) {
-    const respuestas = await Respuesta.find({ instanciaEvaluacion: instancia._id });
-    const cantidadRespondida = respuestas.length;
-    const cantidadEsperada = instancia.cantidadEsperada;
-
-    const resultadosPorIndicador: Record<string, number[]> = {};
-    respuestas.forEach((r) => {
-      r.respuestas.forEach(({ indicadorId, valor }) => {
-        if (!resultadosPorIndicador[indicadorId]) {
-          resultadosPorIndicador[indicadorId] = [];
-        }
-        if (typeof valor === 'number') resultadosPorIndicador[indicadorId].push(valor);
-      });
-    });
-
-    let indiceGlobal = 0;
-    let pesoCuantitativo = 0;
-    const seccionesResult: any[] = [];
-
-    evaluacion.secciones.forEach((seccion: any) => {
-      const indicadoresCuantitativos = seccion.indicadores.filter((indicador: any) => indicador.tipo !== 'cualitativo');
-      if (!indicadoresCuantitativos.length) return;
-      let acumuladoSeccion = 0;
-      indicadoresCuantitativos.forEach((indicador: any) => {
-        const valores = resultadosPorIndicador[indicador.id] || [];
-        const promedio = valores.length
-          ? valores.reduce((a: number, b: number) => a + b, 0) / valores.length
-          : 0;
-        acumuladoSeccion += promedio * 20;
-      });
-
-      const promedioSeccion = acumuladoSeccion / indicadoresCuantitativos.length;
-      pesoCuantitativo += Number(seccion.ponderacion) || 0;
-
-      seccionesResult.push({
-        titulo: seccion.titulo,
-        valor: Math.round(promedioSeccion),
-      });
-    });
-
-    indiceGlobal = seccionesResult.reduce((total, seccion: any) => total + seccion.valor * ((Number(seccion.ponderacion) || 0) / Math.max(pesoCuantitativo, 1)), 0);
+    const actual = await getEstadoActualDashboard(String(instancia._id));
+    // La privacidad también se aplica a interpretaciones y planes asociados.
+    if (actual.privacidad?.protegido) continue;
+    const instanciaId = String(instancia._id);
+    const tieneIndice = actual.indicadores.some(item => (item.n ?? 0) > 0);
+    visibles.push(instanciaId);
+    const activadoEn = instancia.activadoEn instanceof Date ? instancia.activadoEn.toISOString() : String(instancia.activadoEn);
+    seguimiento.push({ instanciaId, activadoEn, indiceGlobal: tieneIndice ? actual.indiceGlobal : null, participacion: actual.participacion, analisis: [], acciones: [] });
+    if (!tieneIndice) continue;
 
     historico.push({
-      instanciaId: instancia._id,
-      activadoEn: instancia.activadoEn,
-      indiceGlobal: Math.round(indiceGlobal),
-      secciones: seccionesResult,
-      participacion: {
-        esperada: cantidadEsperada,
-        recibida: cantidadRespondida,
-        porcentaje:
-          cantidadEsperada > 0
-            ? Math.round((cantidadRespondida / cantidadEsperada) * 100)
-            : 0,
-      },
+      instanciaId,
+      activadoEn,
+      indiceGlobal: actual.indiceGlobal,
+      secciones: actual.secciones,
+      participacion: actual.participacion,
     });
+  }
+
+  if (visibles.length && userId) {
+    const { analyses: analisis, actions: acciones } = await historyAttachmentsRepository().list(userId, equipoId, evaluacionId, visibles);
+    for (const ronda of seguimiento) {
+      ronda.analisis = analisis.filter(item => item.instanciaId === ronda.instanciaId).map(item => ({ ...item.result, id: String(item._id), instanciaId: item.instanciaId, creadoEn: item.creadoEn.toISOString(), snapshot: item.snapshot } as AIAnalysisResponse));
+      ronda.acciones = acciones.filter(item => String(item.instanciaEvaluacion) === ronda.instanciaId).map(item => JSON.parse(JSON.stringify(item)) as AccionPlanResponse);
+    }
   }
 
   return {
@@ -85,6 +56,13 @@ export const getHistoricoPorEquipoYEvaluacion = async (
       titulo: evaluacion.titulo,
       version: evaluacion.version,
     },
+    comparabilidad: {
+      valida: true,
+      razon: 'Las rondas usan la misma evaluación y versión; los cambios describen asociación temporal, no causalidad.',
+      instrumentoVersion: evaluacion.version,
+      reglas: ['Misma evaluación e instrumento', 'Misma escala de respuesta', 'Interpretar junto con participación y calidad de medición', 'No inferir causalidad a partir del índice'],
+    },
     historico,
+    seguimiento,
   };
 };

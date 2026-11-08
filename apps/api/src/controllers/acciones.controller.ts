@@ -5,35 +5,38 @@ import {
   agregarAccionPlan,
   listarAccionesPorInstancia,
   sugerirAccionesConIA,
+  cambiarEstadoAccion,
+  completarCheckInAccion,
 } from '../services/acciones.service';
 
-export const crearAccion = async (req: Request, res: Response): Promise<void> => {
+export const crearAccion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { instanciaId, descripcion, autor } = req.body;
-    if (!instanciaId || !descripcion) {
+    const { instanciaId, descripcion, hallazgoId, evidenciaIds, ownerRole, horizon, successMetric, checkInQuestion, analisisId, propuestaIndice, adaptadaDe } = req.body;
+    if (!instanciaId || !descripcion || !req.user?.id) {
       res.status(400).json({ error: 'Faltan datos obligatorios' });
       return;
     }
-    const accion = await agregarAccionPlan(instanciaId, descripcion, autor);
+    const accion = await agregarAccionPlan(req.user.id, { instanciaId, descripcion, hallazgoId, evidenciaIds, ownerRole, horizon, successMetric, checkInQuestion, analisisId, propuestaIndice, adaptadaDe });
     res.status(201).json(accion);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
-export const obtenerAcciones = async (req: Request, res: Response): Promise<void> => {
+export const obtenerAcciones = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { instanciaId } = req.query;
     if (!instanciaId) {
       res.status(400).json({ error: 'Falta instanciaId' });
       return;
     }
-    const acciones = await listarAccionesPorInstancia(instanciaId.toString());
+    const acciones = await listarAccionesPorInstancia(req.user!.id, instanciaId.toString());
     res.status(200).json(acciones);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 export const obtenerSugerenciasIA = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -48,4 +51,12 @@ export const obtenerSugerenciasIA = async (req: AuthRequest, res: Response): Pro
     const issue = aiError(error);
     res.status(issue.status).json({ error: issue.message, code: issue.code });
   }
+};
+
+export const cambiarEstado = async (req: AuthRequest, res: Response): Promise<void> => {
+  try { res.json(await cambiarEstadoAccion(req.user!.id, String(req.params.actionId), req.body.estado)); } catch (error: any) { res.status(400).json({ error: error.message }); }
+};
+
+export const completarCheckIn = async (req: AuthRequest, res: Response): Promise<void> => {
+  try { res.json(await completarCheckInAccion(req.user!.id, String(req.params.actionId), req.body.horizonte, req.body.nota, req.body.resultado)); } catch (error: any) { res.status(400).json({ error: error.message }); }
 };

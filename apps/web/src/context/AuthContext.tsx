@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-// @ts-ignore
-import { jwtDecode } from 'jwt-decode'
+import api from '../services/api'
 
 interface AuthContextType {
     isAuthenticated: boolean
@@ -10,10 +9,7 @@ interface AuthContextType {
     logout: () => void
 }
 
-interface DecodedToken {
-    exp: number;
-    // podés agregar más campos si los usás (ej. nombre, email)
-}
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -32,25 +28,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     useEffect(() => {
-        const token = localStorage.getItem('token')
-        if (token) {
-            try {
-                const decoded = jwtDecode<DecodedToken>(token)
-                const exp = decoded.exp * 1000
-
-                if (Date.now() >= exp) {
-                    localStorage.removeItem('token')
-                    setIsAuthenticated(false)
-                } else {
-                    setIsAuthenticated(true)
-                }
-            } catch (e) {
-                console.error('Token inválido', e)
-                localStorage.removeItem('token')
-                setIsAuthenticated(false)
-            }
-        }
-        setLista(true)
+        let active = true;
+        const token = localStorage.getItem('token');
+        if (!token) { setLista(true); return; }
+        api.get('/auth/me').then(() => { if (active) setIsAuthenticated(true); })
+            .catch((error) => {
+                if (!active) return;
+                if ([400, 401, 403].includes(error?.response?.status)) localStorage.removeItem('token');
+                setIsAuthenticated(false);
+            }).finally(() => { if (active) setLista(true); });
+        return () => { active = false; };
     }, [])
 
     return (

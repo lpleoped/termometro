@@ -1,258 +1,78 @@
-import { FormEvent, useEffect, useState } from 'react';
+﻿import { type FormEvent, useEffect, useRef, useState } from 'react';
+import type { AccionPlanInput, AccionPlanResponse, AIAnalysisResponse, ContextualAction, HorizonteAccion } from '@termometro/shared';
 import api from '../../../services/api';
+import { iaMessage } from '../../../services/iaSettingsService';
+import SeguimientoAccion from './SeguimientoAccion';
 
-interface Props {
-  instanciaId: string;
-  indice: number;
-}
+const empty = { descripcion: '', ownerRole: '', horizon: '30d' as HorizonteAccion, successMetric: '', checkInQuestion: '' };
 
-interface AccionGuardada {
-  id: string;
-  descripcion: string;
-  creadaEn?: string;
-}
-
-interface AccionContextual {
-  titulo: string;
-  descripcion: string;
-  prioridad: 'baja' | 'media' | 'alta';
-  alcance: 'equipo' | 'liderazgo' | 'proyecto';
-  hallazgo?: string;
-  contextoAplicado?: string[];
-  esCondicionPrevia?: boolean;
-  requiereValidacion: boolean;
-}
-
-function idDe(valor: unknown): string {
-  if (typeof valor === 'string') return valor;
-  if (valor && typeof valor === 'object') {
-    const doc = valor as { _id?: unknown; id?: unknown };
-    if (typeof doc._id === 'string' || typeof doc.id === 'string') {
-      return String(doc._id || doc.id);
-    }
-  }
-  return '';
-}
-
-function normalizarAccion(doc: unknown): AccionGuardada | null {
-  if (!doc || typeof doc !== 'object') return null;
-  const raw = doc as { _id?: unknown; id?: unknown; descripcion?: unknown; creadaEn?: unknown };
-  const id = idDe(raw);
-  const descripcion = typeof raw.descripcion === 'string' ? raw.descripcion.trim() : '';
-  if (!id || !descripcion) return null;
-  const creadaEn = typeof raw.creadaEn === 'string' ? raw.creadaEn : undefined;
-  return { id, descripcion, creadaEn };
-}
-
-function fechaGuardada(iso?: string): string {
-  if (!iso) return '';
-  const fecha = new Date(iso);
-  if (Number.isNaN(fecha.getTime())) return '';
-  return fecha.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-const PlanDeAccion = ({ instanciaId, indice }: Props) => {
-  const [acciones, setAcciones] = useState<AccionGuardada[]>([]);
-  const [leyendo, setLeyendo] = useState(true);
-  const [errorLectura, setErrorLectura] = useState(false);
-  const [intentoLectura, setIntentoLectura] = useState(0);
-  const [texto, setTexto] = useState('');
-  const [guardando, setGuardando] = useState(false);
-  const [errorGuardado, setErrorGuardado] = useState(false);
-  const [guardada, setGuardada] = useState(false);
-  const [sugerencia, setSugerencia] = useState<string | null>(null);
-  const [accionesContextuales, setAccionesContextuales] = useState<AccionContextual[]>([]);
+export default function PlanDeAccion({ instanciaId, indice }: { instanciaId: string; indice: number }) {
+  const [acciones, setAcciones] = useState<AccionPlanResponse[]>([]);
+  const [analysis, setAnalysis] = useState<AIAnalysisResponse | null>(null);
+  const [draft, setDraft] = useState<Omit<AccionPlanInput, 'instanciaId'>>(empty);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [readError, setReadError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const description = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    let cancelado = false;
-    setLeyendo(true);
-    setErrorLectura(false);
-    api
-      .get('/acciones', { params: { instanciaId } })
-      .then((res) => {
-        if (cancelado) return;
-        const lista = Array.isArray(res.data) ? res.data : [];
-        setAcciones(lista.map(normalizarAccion).filter((accion): accion is AccionGuardada => accion !== null));
-      })
-      .catch(() => {
-        if (!cancelado) setErrorLectura(true);
-      })
-      .finally(() => {
-        if (!cancelado) setLeyendo(false);
-      });
-    return () => {
-      cancelado = true;
-    };
-  }, [instanciaId, intentoLectura]);
+    let cancelled = false;
+    setLoading(true); setReadError('');
+    Promise.all([api.get<AccionPlanResponse[]>('/acciones', { params: { instanciaId } }), api.get<AIAnalysisResponse[]>('/ai/analyses', { params: { instanciaId } })])
+      .then(([actions, analyses]) => { if (!cancelled) { setAcciones(actions.data); setAnalysis(analyses.data[0] || null); } })
+      .catch(cause => { if (!cancelled) setReadError(iaMessage(cause)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [instanciaId, retry]);
 
-  useEffect(() => {
-    let cancelado = false;
-    setSugerencia(null);
-
-    const buscar = async () => {
-      try {
-        const res = await api.get('/ai/analyses', { params: { instanciaId } });
-        const latest = res.data?.[0];
-        const contextual = Array.isArray(latest?.accionesContextuales) ? latest.accionesContextuales : [];
-        if (!cancelado) setAccionesContextuales(contextual);
-        const recommendations = latest?.recomendaciones;
-        const plan = Array.isArray(recommendations) ? recommendations.join('\n') : '';
-        if (!cancelado) setSugerencia(plan);
-      } catch {
-        // Previously saved suggestions are optional; no AI request is started here.
-      }
-    };
-
-    buscar();
-    return () => {
-      cancelado = true;
-    };
-  }, [instanciaId]);
-
-  const guardar = async (e: FormEvent) => {
-    e.preventDefault();
-    const descripcion = texto.trim();
-    if (!descripcion || guardando) return;
-    setGuardando(true);
-    setErrorGuardado(false);
-    setGuardada(false);
+  const useProposal = (proposal: ContextualAction, index: number) => {
+    setDraft({ descripcion: proposal.descripcion, ownerRole: proposal.ownerRole, horizon: proposal.horizon, successMetric: proposal.successMetric, checkInQuestion: proposal.checkInQuestion, evidenciaIds: proposal.evidenceIds, analisisId: analysis?.id, propuestaIndice: index });
+    setSaved(false); setError(''); description.current?.focus();
+  };
+  const adapt = (action: AccionPlanResponse) => {
+    setDraft({ descripcion: action.descripcion, ownerRole: action.ownerRole || '', horizon: action.horizon || '30d', successMetric: action.successMetric || '', checkInQuestion: action.checkInQuestion || '', adaptadaDe: action._id });
+    setSaved(false); setError(''); description.current?.focus();
+  };
+  const save = async (event: FormEvent) => {
+    event.preventDefault(); if (busy) return;
+    setBusy(true); setError(''); setSaved(false);
     try {
-      const res = await api.post('/acciones', { instanciaId, descripcion });
-      const nueva = normalizarAccion(res.data) ?? {
-        id: `local-${Date.now()}`,
-        descripcion,
-        creadaEn: new Date().toISOString(),
-      };
-      setAcciones((prev) => [nueva, ...prev.filter((accion) => accion.id !== nueva.id)]);
-      setTexto('');
-      setGuardada(true);
-    } catch {
-      setErrorGuardado(true);
-    } finally {
-      setGuardando(false);
-    }
+      const response = await api.post<AccionPlanResponse>('/acciones', { ...draft, instanciaId });
+      setAcciones(prev => [response.data, ...prev]); setDraft(empty); setSaved(true);
+    } catch (cause) { setError(iaMessage(cause)); }
+    finally { setBusy(false); }
   };
+  const change = (field: keyof typeof empty, value: string) => { setDraft(prev => ({ ...prev, [field]: value })); setSaved(false); };
 
-  const usarSugerencia = () => {
-    if (!sugerencia) return;
-    setTexto(sugerencia);
-    setGuardada(false);
-    setErrorGuardado(false);
-  };
-
-  const usarAccionContextual = (accion: AccionContextual) => {
-    const detalle = accion.esCondicionPrevia ? `Condición previa: ${accion.descripcion}` : accion.descripcion;
-    setTexto(detalle);
-    setGuardada(false);
-    setErrorGuardado(false);
-  };
-
-  const textoListo = texto.trim().length > 0;
-
-  return (
-    <section className="action-plan mt-4" aria-labelledby="titulo-accion">
-      <h3 id="titulo-accion" className="h5 fw-bold mb-1">
-        Dejá una acción
-      </h3>
-      <p className="text-muted mb-3">Con el índice en {indice} / 100, anotá qué van a hacer.</p>
-
-      {sugerencia && (
-        <div className="mb-3">
-          <p className="fw-semibold mb-1">Sugerencias del último análisis guardado</p>
-          <p className="mb-2" style={{ whiteSpace: 'pre-wrap' }}>
-            {sugerencia}
-          </p>
-          <button type="button" className="btn btn-outline-secondary" onClick={usarSugerencia}>
-            Usar esta sugerencia
-          </button>
-        </div>
-      )}
-
-      {accionesContextuales.length > 0 && (
-        <div className="mb-4" aria-labelledby="acciones-contextuales-title">
-          <p id="acciones-contextuales-title" className="fw-semibold mb-2">Propuestas contextualizadas</p>
-          <p className="text-muted small">La IA relacionó estas propuestas con hallazgos y contexto del equipo. Revisalas antes de incorporarlas al plan.</p>
-          <div className="d-grid gap-2">
-            {accionesContextuales.map((accion, index) => (
-              <article key={`${accion.titulo}-${index}`} className="border rounded p-3">
-                <div className="d-flex justify-content-between gap-2 align-items-start">
-                  <h4 className="h6 mb-1">{accion.titulo}</h4>
-                  <span className="badge text-bg-light">Prioridad {accion.prioridad}</span>
-                </div>
-                <p className="mb-2">{accion.descripcion}</p>
-                {accion.esCondicionPrevia && <p className="small text-primary mb-2"><strong>Condición previa:</strong> debe resolverse antes de avanzar con otras acciones.</p>}
-                {accion.hallazgo && <p className="small text-muted mb-1"><strong>Hallazgo:</strong> {accion.hallazgo}</p>}
-                {accion.contextoAplicado?.length ? <p className="small text-muted mb-2"><strong>Contexto aplicado:</strong> {accion.contextoAplicado.join(', ')}</p> : null}
-                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => usarAccionContextual(accion)}>Revisar y usar en el plan</button>
-              </article>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {leyendo && <p className="text-muted">Leyendo las acciones...</p>}
-      {errorLectura && (
-        <div className="alert alert-danger" role="alert">
-          <p className="mb-3">No se pudieron leer las acciones guardadas.</p>
-          <button
-            type="button"
-            className="btn btn-outline-danger"
-            onClick={() => setIntentoLectura((n) => n + 1)}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
-      {acciones.length > 0 && (
-        <ul className="list-unstyled mb-3">
-          {acciones.map((accion) => {
-            const fecha = fechaGuardada(accion.creadaEn);
-            return (
-              <li key={accion.id} className="mb-2 p-3 rounded bg-light">
-                <p className="mb-1" style={{ whiteSpace: 'pre-wrap' }}>
-                  {accion.descripcion}
-                </p>
-                {fecha && <p className="text-muted small mb-0">Guardada el {fecha}</p>}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <form onSubmit={guardar}>
-        {errorGuardado && (
-          <div className="alert alert-danger" role="alert">
-            No se pudo guardar la acción.
-          </div>
-        )}
-        {guardada && (
-          <p className="text-success mb-3" role="status">
-            La acción quedó guardada.
-          </p>
-        )}
-        <div className="mb-3">
-          <label htmlFor="accion-ronda" className="form-label fw-semibold">
-            Qué van a hacer
-          </label>
-          <textarea
-            id="accion-ronda"
-            className="form-control"
-            rows={3}
-            value={texto}
-            onChange={(e) => {
-              setTexto(e.target.value);
-              setGuardada(false);
-              setErrorGuardado(false);
-            }}
-            disabled={guardando}
-          />
-        </div>
-        <button type="submit" className="btn btn-primary" disabled={!textoListo || guardando}>
-          {guardando ? 'Guardando la acción...' : 'Guardar la acción'}
-        </button>
-      </form>
-    </section>
-  );
-};
-
-export default PlanDeAccion;
+  return <section className="action-plan mt-4" aria-labelledby="titulo-accion">
+    <h3 id="titulo-accion" className="h5 fw-bold">Plan de acción y seguimiento</h3>
+    <p className="text-muted">Índice actual: {indice} / 100. Registrá lo propuesto, lo aplicado y lo aprendido para orientar las próximas decisiones.</p>
+    {loading && <p role="status">Leyendo acciones y propuestas…</p>}
+    {readError && <div className="alert alert-danger" role="alert">{readError} <button className="btn btn-sm btn-outline-danger" onClick={() => setRetry(value => value + 1)}>Reintentar lectura</button></div>}
+    {!!analysis?.accionesContextuales?.length && <details className="mb-4"><summary className="fw-semibold">Propuestas del último análisis de IA ({analysis.accionesContextuales.length})</summary>
+      <div className="d-grid gap-3 mt-3">{analysis.accionesContextuales.map((proposal, index) => <article className="border rounded p-3" key={index}>
+        <h4 className="h6">{proposal.titulo}</h4><p>{proposal.descripcion}</p>
+        <p className="small">Responsable: {proposal.ownerRole} · Plazo: {proposal.horizon.replace('d', ' días')} · Métrica: {proposal.successMetric}</p>
+        <button className="btn btn-sm btn-outline-primary" disabled={busy} onClick={() => useProposal(proposal, index)}>Revisar y usar en el plan</button>
+      </article>)}</div>
+    </details>}
+    {!!acciones.length && <div className="d-grid gap-3 mb-4">{acciones.map(action => <SeguimientoAccion key={action._id} accion={action} onAdapt={adapt} onChange={updated => setAcciones(prev => prev.map(item => item._id === updated._id ? updated : item))} />)}</div>}
+    <form onSubmit={save}>
+      <h4 className="h6">{draft.adaptadaDe ? 'Ajustar una acción conservando su antecedente' : 'Registrar una acción'}</h4>
+      {(draft.analisisId || draft.adaptadaDe) && <p className="small">Podés ajustar todos los campos. Se conserva el vínculo y el texto original para comparar qué cambió. <button type="button" className="btn btn-link btn-sm" disabled={busy} onClick={() => setDraft(empty)}>Empezar sin antecedente</button></p>}
+      {error && <div className="alert alert-danger" role="alert">{error}</div>}
+      {saved && <p className="text-success" role="status">La acción quedó guardada como propuesta. Pasala a revisión cuando esté lista.</p>}
+      <fieldset disabled={busy}>
+        <label className="form-label d-block">Qué van a hacer<textarea ref={description} className="form-control" rows={3} required maxLength={4000} value={draft.descripcion} onChange={e => change('descripcion', e.target.value)} /></label>
+        <div className="row g-3"><label className="col-md-8 form-label">Responsable (rol)<input className="form-control" required maxLength={200} value={draft.ownerRole} onChange={e => change('ownerRole', e.target.value)} placeholder="Por ejemplo: facilitador del equipo" /></label>
+          <label className="col-md-4 form-label">Plazo<select className="form-select" value={draft.horizon} onChange={e => change('horizon', e.target.value)}><option value="7d">7 días</option><option value="30d">30 días</option><option value="90d">90 días</option></select></label></div>
+        <label className="form-label d-block">Cómo van a medir el resultado<input className="form-control" required maxLength={500} value={draft.successMetric} onChange={e => change('successMetric', e.target.value)} /></label>
+        <label className="form-label d-block">Pregunta para el seguimiento<input className="form-control" required maxLength={500} value={draft.checkInQuestion} onChange={e => change('checkInQuestion', e.target.value)} /></label>
+        <button className="btn btn-primary" disabled={!draft.descripcion.trim() || !draft.ownerRole.trim() || !draft.successMetric.trim() || !draft.checkInQuestion.trim()}>{busy ? 'Guardando…' : 'Guardar la acción'}</button>
+      </fieldset>
+    </form>
+  </section>;
+}

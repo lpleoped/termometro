@@ -1,31 +1,32 @@
-import resultsPreview from '../../assets/results.png'
-
 export default function InfoSection() {
+  const steps = [
+    ['01', 'Diseña la evaluación', 'Crea preguntas alineadas con el momento y las necesidades de tu equipo.'],
+    ['02', 'Escucha las respuestas', 'Comparte la evaluación y reúne señales de forma clara y respetuosa.'],
+    ['03', 'Decide el siguiente paso', 'Consulta el análisis de tu equipo y convierte los hallazgos en acciones.'],
+  ];
+
   return (
     <section id="info-section" className="container-fluid my-4" style={{ background: '#fff' }}>
-      <div className="row align-items-start">
-        <div className="col-md-6" data-aos="fade-right" data-aos-delay="100" data-aos-offset="200">
-          <h3 className="fw-bold">Medir el clima organizacional</h3>
-          <p className="text-muted">
-            Evalúa periódicamente el ambiente laboral mediante encuestas personalizadas.
-          </p>
-        </div>
-
-        <div className="col-md-6" data-aos="fade-left" data-aos-delay="200" data-aos-offset="200">
-          <h3 className="fw-bold mt-4">Obtener información valiosa</h3>
-          <p className="text-muted">
-            Accede a los resultados y análisis para identificar áreas de mejora.
-          </p>
-        </div>
+      <div className="text-center mb-5">
+        <span className="text-primary fw-semibold text-uppercase small">Cómo funciona</span>
+        <h2 className="fw-bold mt-2">Una conversación con datos reales</h2>
+        <p className="text-muted mx-auto" style={{ maxWidth: '620px' }}>
+          Termómetro acompaña a tu equipo desde la encuesta hasta las decisiones de mejora,
+          sin llenar la pantalla con números que todavía no existen.
+        </p>
       </div>
-      <div className="col-md-2" data-aos="fade-left" data-aos-delay="200" data-aos-offset="200">
-        <img
-          src={resultsPreview}
-          width={500}
-          className="mb-6"
-          alt="Vista de resultados del Termómetro de Equipo"
-        />
+
+      <div className="row g-4">
+        {steps.map(([number, title, description], index) => (
+          <div className="col-md-4" data-aos="fade-up" data-aos-delay={100 * (index + 1)} key={number}>
+            <article className="h-100 border rounded-4 p-4 bg-light">
+              <div className="text-primary fw-bold fs-4 mb-3">{number}</div>
+              <h3 className="h5 fw-bold">{title}</h3>
+              <p className="text-muted mb-0">{description}</p>
+            </article>
+          </div>
+        ))}
       </div>
     </section>
-  )
+  );
 }

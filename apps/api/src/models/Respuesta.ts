@@ -16,6 +16,7 @@ export interface IRespuesta extends Document {
   respondidoEn: Date;
   identidad?: { nombre?: string; email?: string };
   consentimientoIdentificado?: boolean;
+  idempotencyKey?: string;
 }
 
 const RespuestaSchema = new Schema<IRespuesta>({
@@ -38,6 +39,7 @@ const RespuestaSchema = new Schema<IRespuesta>({
   respondidoEn: { type: Date, default: Date.now },
   identidad: { nombre: String, email: String },
   consentimientoIdentificado: { type: Boolean, default: false },
+  idempotencyKey: { type: String, index: true },
 });
 
 export const Respuesta = model<IRespuesta>('Respuesta', RespuestaSchema);

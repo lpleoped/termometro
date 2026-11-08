@@ -7,8 +7,17 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc -p tsconfig.json",
+    "test:context": "npm run build && node dist/context-engineering.test.js && node dist/ai-completion.test.js && node dist/dashboard-quality.test.js && node dist/acciones-lifecycle.test.js && node dist/authorization.test.js && node dist/eliminar-usuario.test.js",
+    "test:storage": "npm run build && node dist/storage/json-storage.test.js",
+    "test:portable": "npm run build && node dist/storage/portable.test.js",
+    "test:parity": "npm run build -w @termometro/shared && npm run build && node --test tests/features-parity.test.cjs",
+    "test:repositories": "npm run build && node dist/repositories/repository-conformance.test.js",
+    "test:local-flow": "npm run build && node dist/local-first-flow.test.js",
+    "test:local-http": "npm run build -w @termometro/shared && npm run build && node --test tests/local-first-http.test.cjs",
+    "test:learning": "npm run build -w @termometro/shared && npm run build && node --test tests/learning-history.test.cjs tests/historico-consistency.test.cjs tests/learning-history-http.test.cjs",
     "start": "node dist/app.js",
-    "seed": "ts-node src/seed.ts"
+    "seed": "ts-node src/seed.ts",
+    "delete-user": "ts-node src/scripts/eliminar-usuario.ts"
   },
   "dependencies": {
     "@termometro/shared": "*",

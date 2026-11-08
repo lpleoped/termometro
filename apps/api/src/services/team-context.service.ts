@@ -1,22 +1,28 @@
-import { TeamContextItem } from '../models/TeamContextItem';
-import { Equipo } from '../models/Equipo';
-
-export type TeamContextChanges = { type?: string; title?: string; content?: string; source?: string; scope?: string; status?: string; confidence?: number; validFrom?: Date; validUntil?: Date };
-const ownsTeam = async (teamId: string, userId: string) => !!await Equipo.exists({ _id: teamId, creadoPor: userId, activo: { $ne: false } });
-
+import type { TeamContextInput } from '@termometro/shared';
+import { teamRepository } from '../repositories/team.repository';
+import { featureRepository } from '../repositories/feature.repository';
+import { newFeature, validateFeature } from '../domain/feature-validation';
+export type TeamContextChanges = Partial<TeamContextInput>;
+const ownsTeam = (teamId: string, userId: string) => teamRepository().findOwnedActive(teamId, userId);
+const fields = (input: TeamContextChanges) => Object.fromEntries(
+  ['type','title','content','source','scope','status','confidence','validFrom','validUntil','importance','sensitivity','influence']
+    .filter(key => (input as any)[key] !== undefined).map(key => [key, (input as any)[key]]));
 export const listTeamContext = async (teamId: string, userId: string) => {
   if (!await ownsTeam(teamId, userId)) return null;
-  return TeamContextItem.find({ teamId }).sort({ status: 1, updatedAt: -1 }).lean();
+  return featureRepository('teamContextItems').list({ teamId }, { status: 1, updatedAt: -1 });
 };
 export const createTeamContext = async (teamId: string, userId: string, input: TeamContextChanges) => {
   if (!await ownsTeam(teamId, userId)) return null;
-  return new TeamContextItem({ ...input, teamId, createdBy: userId, updatedBy: userId }).save();
+  return featureRepository('teamContextItems').insert(newFeature('teamContextItems', { ...fields(input), teamId, createdBy: userId, updatedBy: userId }));
 };
 export const updateTeamContext = async (teamId: string, itemId: string, userId: string, changes: TeamContextChanges) => {
   if (!await ownsTeam(teamId, userId)) return null;
-  return TeamContextItem.findOneAndUpdate({ _id: itemId, teamId }, { $set: { ...changes, updatedBy: userId }, $inc: { version: 1 } }, { new: true, runValidators: true }).lean();
+  const repository = featureRepository('teamContextItems');
+  const previous = await repository.find({ _id: itemId, teamId });
+  if (!previous) return null;
+  const record = { ...previous, ...fields(changes), updatedBy: userId, updatedAt: new Date(), version: previous.version + 1 };
+  validateFeature('teamContextItems', record);
+  return repository.save(record);
 };
-export const deleteTeamContext = async (teamId: string, itemId: string, userId: string) => {
-  if (!await ownsTeam(teamId, userId)) return null;
-  return TeamContextItem.findOneAndUpdate({ _id: itemId, teamId }, { $set: { status: 'obsolete', updatedBy: userId }, $inc: { version: 1 } }, { new: true }).lean();
-};
+export const deleteTeamContext = (teamId: string, itemId: string, userId: string) =>
+  updateTeamContext(teamId, itemId, userId, { status: 'obsolete' });

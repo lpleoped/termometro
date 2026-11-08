@@ -20,12 +20,17 @@ export interface IndicadorClima {
   id: string;
   texto: string;
   valor: number;
+  direccion?: 'positiva' | 'negativa';
+  n: number;
+  calidad?: IndicadorResultado['calidad'];
 }
 
 export interface SeccionClima {
   titulo: string;
   valor: number;
   indicadores: IndicadorClima[];
+  n: number;
+  calidad?: SeccionResultado['calidad'];
 }
 
 export function agruparIndicadores(
@@ -36,17 +41,22 @@ export function agruparIndicadores(
   const porId = new Map(indicadores.map((indicador) => [indicador.id, indicador]));
   const porTitulo = new Map(secciones.map((seccion) => [seccion.titulo, seccion]));
 
-  return evaluacion.secciones.map((seccion, index) => {
-    const resultado = porTitulo.get(seccion.titulo) ?? secciones[index];
+  return evaluacion.secciones.filter(seccion => seccion.indicadores.some(indicador => indicador.tipo === 'cuantitativo')).map((seccion) => {
+    const resultado = porTitulo.get(seccion.titulo);
     return {
       titulo: seccion.titulo,
       valor: resultado?.valor ?? 0,
+      n: resultado?.n ?? 0,
+      calidad: resultado?.calidad,
     indicadores: (seccion.indicadores ?? []).filter((indicador) => indicador.tipo !== 'cualitativo').map((indicador) => {
         const calculado = porId.get(indicador.id);
         return {
           id: indicador.id,
           texto: calculado?.texto || indicador.texto,
           valor: calculado?.valorPonderado ?? 0,
+          direccion: calculado?.direccion,
+          n: calculado?.n ?? 0,
+          calidad: calculado?.calidad,
         };
       }),
     };
@@ -78,8 +88,13 @@ function Arana({
   alElegir?: (index: number) => void;
   altura: number;
 }) {
+  const etiquetasCortas = nombres.map((nombre, index) => {
+    const limpio = nombre.trim();
+    if (limpio.length <= 24) return `${index + 1}. ${limpio}`;
+    return `${index + 1}. ${limpio.slice(0, 21)}…`;
+  });
   const data = {
-    labels: nombres.map((_, index) => String(index + 1)),
+    labels: etiquetasCortas,
     datasets: [
       {
         label: 'Valores',
@@ -141,25 +156,27 @@ function Arana({
   );
 }
 
-function ListaLegible({
-  filas,
-}: {
-  filas: { texto: string; valor: number }[];
-}) {
+function BarrasIndicadores({ filas, muestraHeterogenea }: { filas: IndicadorClima[]; muestraHeterogenea: boolean }) {
   return (
-    <ul className="list-unstyled mb-0">
+    <div className="climate-indicator-bars" aria-label="Resultados por indicador">
       {filas.map((fila, index) => (
-        <li key={`${index}-${fila.texto}`} className="climate-indicator-row d-flex gap-3 mb-3">
-          <span className="fw-bold climate-number" style={{ color: colorDe(fila.valor) }}>
-            {index + 1}
-          </span>
-          <span className="flex-grow-1 climate-label">
-            {fila.texto}
-          </span>
-          <span className="fw-semibold text-nowrap">{fila.valor} / 100</span>
-        </li>
+        <div className="climate-indicator-bar" key={`${index}-${fila.id}`}>
+          <div className="d-flex justify-content-between gap-3 mb-1">
+            <span className="climate-indicator-bar-label"><strong>{index + 1}.</strong> {fila.texto}</span>
+            <span className="text-nowrap fw-semibold">{fila.valor} / 100</span>
+          </div>
+          <div className="climate-score-track" aria-hidden="true">
+            <span style={{ width: `${Math.max(0, Math.min(100, fila.valor))}%`, backgroundColor: colorDe(fila.valor) }} />
+          </div>
+          {muestraHeterogenea && (
+            <small className="climate-indicator-sample text-muted">
+              {fila.n} {fila.n === 1 ? 'respuesta válida' : 'respuestas válidas'}
+            </small>
+          )}
+          <small className="text-muted">n={fila.n}{fila.calidad?.techoPiso ? ` · ${fila.calidad.techoPiso}` : ''}</small>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -191,12 +208,12 @@ const FormaDelClima = ({ secciones, hayRespuestas }: Props) => {
   const indice = elegida >= 0 && elegida < secciones.length ? elegida : 0;
   const seccion = secciones[indice];
   const mostrarAranaSecciones = secciones.length >= 3;
-  const mostrarAranaIndicadores = seccion.indicadores.length >= 3;
+  const muestraHeterogenea = new Set(seccion.indicadores.map((item) => item.n)).size > 1;
 
   return (
     <section className="climate-distribution" aria-label="Cómo se reparte el clima">
       <h3 className="h5 fw-bold mb-3">Cómo se reparte el clima</h3>
-      <p className="climate-intro">Elegí una sección para ver el detalle de sus indicadores. Los valores están expresados sobre 100.</p>
+      <p className="climate-intro">Elegí una sección para ver el detalle. El puntaje expresa una condición favorable: más cerca de 100 es mejor y más cerca de 0 requiere atención. Las preguntas abiertas se analizan por separado.</p>
       <div className="row g-4 align-items-center">
         {mostrarAranaSecciones && (
           <div className="col-lg-6">
@@ -224,7 +241,7 @@ const FormaDelClima = ({ secciones, hayRespuestas }: Props) => {
                     {index + 1}
                   </span>
                   <span className="flex-grow-1 climate-label">
-                    {item.titulo}
+                    {item.titulo}<small className="d-block text-muted">n={item.n}{item.calidad?.techoPiso ? ` · ${item.calidad.techoPiso}` : ''}</small>
                     <span className="climate-score-track" aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, item.valor))}%` }} /></span>
                   </span>
                   <span className="fw-semibold text-nowrap">{item.valor} / 100</span>
@@ -237,21 +254,7 @@ const FormaDelClima = ({ secciones, hayRespuestas }: Props) => {
 
       <div className="climate-detail mt-4">
         <h4 className="h6 fw-bold mb-3">Preguntas de {seccion.titulo}</h4>
-        {mostrarAranaIndicadores && (
-          <div className="climate-indicator-chart mb-3">
-            <Arana
-              nombres={seccion.indicadores.map((indicador) => indicador.texto)}
-              valores={seccion.indicadores.map((indicador) => indicador.valor)}
-              altura={300}
-            />
-          </div>
-        )}
-        <ListaLegible
-          filas={seccion.indicadores.map((indicador) => ({
-            texto: indicador.texto,
-            valor: indicador.valor,
-          }))}
-        />
+        <BarrasIndicadores filas={seccion.indicadores} muestraHeterogenea={muestraHeterogenea} />
       </div>
     </section>
   );

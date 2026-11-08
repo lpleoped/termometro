@@ -926,10 +926,15 @@ section, .main-bg {
 }
 
 .evaluation-eyebrow {
+  display: inline-block;
   color: var(--primary-light);
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
+  line-height: 1.35;
+  /* Reserva espacio para el overhang de la primera letra sin sacarla del panel. */
+  padding: 0.1em 0 0.1em 0.08em;
+  margin-left: 0;
   text-transform: uppercase;
 }
 
@@ -1042,16 +1047,59 @@ section, .main-bg {
 .climate-detail { border-top: 1px solid #e6eded; padding-top: 24px; }
 .history-chart { background: #fff; border: 1px solid #dce6e6; border-radius: 16px; }
 
+.climate-indicator-bars {
+  display: grid;
+  gap: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.climate-indicator-bar-label {
+  color: #334155;
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.climate-indicator-bar-label strong {
+  color: #2563eb;
+  margin-right: .25rem;
+}
+
+.climate-indicator-bar .climate-score-track {
+  height: 8px;
+  margin: 0 0 .25rem;
+}
+
+/* El tamaño de muestra global ya está en el encabezado. Sólo mostramos el
+   detalle por indicador si hay respuestas incompletas entre preguntas. */
+.climate-section-choice .climate-label > small,
+.climate-indicator-bar > small:not(.climate-indicator-sample) {
+  display: none !important;
+}
+
+.climate-indicator-sample {
+  display: none !important;
+}
+
 .dashboard-resumen {
   border: 1px solid transparent;
   border-radius: 16px !important;
-  overflow: hidden;
+  /* Los títulos y focos no se deben recortar por el radio del panel. */
+  overflow: visible;
 }
 
 .dashboard-resumen .resumen-header,
 .dashboard-resumen .resumen-footer,
 .dashboard-resumen .resumen-alert {
   color: #fff;
+}
+
+.dashboard-resumen .resumen-header {
+  border-radius: 15px 15px 0 0;
+}
+
+.dashboard-resumen .resumen-alert:last-child,
+.dashboard-resumen .resumen-footer:last-child {
+  border-radius: 0 0 15px 15px;
 }
 
 .dashboard-resumen .resumen-header p,
@@ -1167,12 +1215,24 @@ section, .main-bg {
   padding: 0.75rem 0.5rem 1rem !important;
 }
 .dashboard-sidebar-fixed .sidebar-header > div:first-child { min-width: 0; }
-.dashboard-sidebar-fixed .sidebar-header .btn-menu-toggle { flex: 0 0 44px; }
+.dashboard-sidebar-fixed .sidebar-header .btn-menu-toggle {
+  /* El flex-basis anterior (44px) vencía al ancho (36px) y lo volvía ovalado. */
+  flex: 0 0 40px;
+}
 
 .dashboard-sidebar-fixed .btn-menu-toggle {
   box-shadow: none !important;
-  height: 36px !important;
-  width: 36px !important;
+  align-self: center;
+  aspect-ratio: 1 / 1;
+  border: 2px solid #2563eb !important;
+  border-radius: 50% !important;
+  height: 40px !important;
+  max-height: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0 !important;
+  width: 40px !important;
 }
 
 .dashboard-sidebar-fixed .equipo-header {
@@ -1383,4 +1443,139 @@ section, .main-bg {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
   }
+}
+
+/* Alta de evaluación: flujo de creación claro y respirado. */
+.alta-evaluacion-page {
+  max-width: 1180px;
+  padding-bottom: 4rem !important;
+}
+
+.alta-evaluacion-header {
+  align-items: flex-end;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto 1.75rem;
+  max-width: 1080px;
+}
+
+.alta-evaluacion-header h1 {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  letter-spacing: -0.04em;
+}
+
+.alta-eyebrow,
+.alta-card-kicker {
+  color: #2563eb;
+  display: block;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  margin-bottom: .55rem;
+  text-transform: uppercase;
+}
+
+.alta-progress-note {
+  align-items: center;
+  color: #64748b;
+  display: inline-flex;
+  font-size: .82rem;
+  gap: .45rem;
+  padding-bottom: .35rem;
+}
+
+.alta-progress-dot {
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #d1fae5;
+  display: inline-block;
+  height: 7px;
+  width: 7px;
+}
+
+.alta-evaluacion-grid {
+  align-items: start;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(280px, .78fr) minmax(0, 1.22fr);
+  margin: 0 auto;
+  max-width: 1080px;
+}
+
+.alta-assistant-card,
+.alta-builder-column {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 26px rgb(15 23 42 / .055) !important;
+}
+
+.alta-assistant-card {
+  background: linear-gradient(155deg, #f8fbff 0%, #fff 62%);
+  border-color: #bfdbfe !important;
+  position: sticky;
+  top: 92px;
+}
+
+.alta-assistant-card .card-body,
+.alta-builder-column {
+  padding: 1.35rem;
+}
+
+.alta-assistant-card .card-title {
+  font-size: 1.3rem;
+  letter-spacing: -.025em;
+}
+
+.alta-assistant-card .card-text {
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.alta-assistant-card .form-label,
+.alta-builder .form-label {
+  color: #334155;
+  font-size: .82rem;
+}
+
+.alta-assistant-card .alert-danger {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  font-size: .82rem;
+}
+
+.alta-builder-column {
+  background: #fff;
+}
+
+.alta-builder > .mb-4:first-of-type {
+  border-bottom: 1px solid #eef2f7;
+  padding-bottom: 1.2rem;
+}
+
+.alta-builder .card {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+.alta-builder .card-body {
+  padding: 1.15rem;
+}
+
+.alta-builder .card-body > .d-flex {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: .8rem;
+}
+
+.alta-builder .btn-primary {
+  box-shadow: 0 4px 12px rgb(37 99 235 / .2);
+  min-height: 44px;
+}
+
+@media (max-width: 767px) {
+  .alta-evaluacion-page { padding-top: 1.5rem !important; }
+  .alta-evaluacion-header { align-items: flex-start; flex-direction: column; gap: .8rem; }
+  .alta-evaluacion-grid { display: flex; flex-direction: column; }
+  .alta-assistant-card { position: static; width: 100%; }
+  .alta-builder-column { width: 100%; }
 }

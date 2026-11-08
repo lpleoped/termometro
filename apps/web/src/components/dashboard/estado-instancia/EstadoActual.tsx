@@ -6,6 +6,7 @@ import { getInstanciaById } from '../../../services/instanciaService';
 import FormaDelClima, { agruparIndicadores, type SeccionClima } from './FormaDelClima';
 import DashboardResumen from './DashboardResumen';
 import PlanDeAccion from '../plan/PlanDeAccion';
+import RespuestasCualitativas from './RespuestasCualitativas';
 
 interface Props {
   instanciaId: string;
@@ -146,12 +147,14 @@ const EstadoActual = ({ instanciaId }: Props) => {
         </div>
       </div>
       <ResumenDeRonda data={data} />
-      {data.alertas && data.alertas.length > 0 && <section className="mt-4" aria-labelledby="alertas-ronda"><p className="evaluation-eyebrow mb-2">Señales detectadas</p><h3 id="alertas-ronda" className="h5 mb-3">Alertas basadas en evidencia</h3><div className="d-grid gap-2">{data.alertas.map((alerta, index) => <div key={`${alerta.titulo}-${index}`} className={`rounded border p-3 ${alerta.severidad === 'critica' ? 'border-danger' : 'border-warning'}`}><div className="d-flex justify-content-between gap-2"><strong>{alerta.titulo}</strong><span className={`badge ${alerta.severidad === 'critica' ? 'text-bg-danger' : 'text-bg-warning'}`}>{alerta.severidad === 'critica' ? 'Crítica' : 'Atención'}</span></div><p className="small text-muted mb-0 mt-1">{alerta.evidencia}</p></div>)}</div></section>}
-      {resumenCualitativo && resumenCualitativo.preguntas > 0 && <section className="mt-4 rounded border p-4" aria-labelledby="respuestas-cualitativas">
-        <p className="evaluation-eyebrow mb-2">Voces del equipo</p>
-        <h3 id="respuestas-cualitativas" className="h5 mb-2">Respuestas cualitativas</h3>
-        {resumenCualitativo.disponible ? <p className="mb-0">Se recibieron {resumenCualitativo.respuestas} respuestas con texto en {resumenCualitativo.preguntas} pregunta{resumenCualitativo.preguntas === 1 ? '' : 's'}. Se analizan por separado y no forman parte del índice.</p> : <p className="mb-0">Las respuestas cualitativas están protegidas hasta alcanzar el mínimo de anonimato configurado. No forman parte del índice.</p>}
+      {data.calidadMedicion && <section className="mt-4 rounded border p-4" aria-labelledby="calidad-medicion">
+        <p className="evaluation-eyebrow mb-2">Calidad de la medición</p>
+        <h3 id="calidad-medicion" className="h5 mb-2">Cómo leer este resultado</h3>
+        <p className="small text-muted mb-2">El semáforo describe el nivel operativo (0–100); no reemplaza la lectura de muestra, participación y dispersión.</p>
+        <div className="small mb-2">Muestra: <strong>{data.participacion.recibida}</strong> de {data.participacion.esperada} respuestas ({data.participacion.porcentaje}%).</div>
+        {data.calidadMedicion.advertencias.length > 0 ? <ul className="small text-muted mb-0">{data.calidadMedicion.advertencias.map((advertencia, index) => <li key={index}>{advertencia}</li>)}</ul> : <p className="small text-muted mb-0">La muestra permite estimar la dispersión por indicador cuando hay al menos 3 respuestas válidas.</p>}
       </section>}
+      {data.alertas && data.alertas.length > 0 && <section className="mt-4" aria-labelledby="alertas-ronda"><p className="evaluation-eyebrow mb-2">Señales detectadas</p><h3 id="alertas-ronda" className="h5 mb-3">Alertas basadas en evidencia</h3><div className="d-grid gap-2">{data.alertas.map((alerta, index) => <div key={`${alerta.titulo}-${index}`} className={`rounded border p-3 ${alerta.severidad === 'critica' ? 'border-danger' : 'border-warning'}`}><div className="d-flex justify-content-between gap-2"><strong>{alerta.titulo}</strong><span className={`badge ${alerta.severidad === 'critica' ? 'text-bg-danger' : 'text-bg-warning'}`}>{alerta.severidad === 'critica' ? 'Crítica' : 'Atención'}</span></div><p className="small text-muted mb-0 mt-1">{alerta.evidencia}</p></div>)}</div></section>}
       {!data.privacidad?.protegido && <div className="mt-4"><FormaDelClima secciones={secciones} hayRespuestas={data.participacion.recibida > 0} /></div>}
       <div className="dashboard-next-steps mt-4" aria-labelledby="siguientes-pasos">
         <p className="evaluation-eyebrow mb-2">Siguientes pasos</p>
@@ -168,7 +171,7 @@ const EstadoActual = ({ instanciaId }: Props) => {
           </Link>
         </div>
       </div>
-      {!data.privacidad?.protegido && <PlanDeAccion instanciaId={instanciaId} indice={data.indiceGlobal} />}
+      {!data.privacidad?.protegido && <PlanDeAccion key={instanciaId} instanciaId={instanciaId} indice={data.indiceGlobal} />}
       <div className="mt-4">
         <label htmlFor="link-equipo" className="form-label">
           Link para el equipo
@@ -180,6 +183,7 @@ const EstadoActual = ({ instanciaId }: Props) => {
         </button>
       </div>
       {!data.privacidad?.protegido && <Link className="btn btn-outline-secondary mt-4" to={`/backoffice/ia?instanciaId=${instanciaId}`}>Abrir análisis con IA</Link>}
+      {resumenCualitativo && <RespuestasCualitativas resumen={resumenCualitativo} />}
     </div>
   );
 };

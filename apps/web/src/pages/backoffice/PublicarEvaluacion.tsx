@@ -4,6 +4,8 @@ import LayoutBackoffice from '../../components/layouts/LayoutBackoffice';
 import { getEvaluaciones, type Evaluacion } from '../../services/evaluacionService';
 import { getEquipos } from '../../services/equipoService';
 import { crearInstancia, getInstanciaById } from '../../services/instanciaService';
+import { getEnlacesPublicos } from '../../services/instanciaService';
+import QRCode from 'qrcode';
 
 interface EquipoOpcion {
   id: string;
@@ -19,7 +21,9 @@ interface CuestionarioOpcion {
 }
 
 interface RondaAbierta {
-  equipoId: string;
+  equipoId?: string;
+  alcance?: 'equipo' | 'persona' | 'individual';
+  evaluadoNombre?: string;
   equipo: string;
   evaluacionId: string;
   titulo: string;
@@ -28,6 +32,7 @@ interface RondaAbierta {
   cantidadEsperada: number;
   modoRespuesta: 'anonima' | 'identificada';
   minimoAnonimato: number;
+  tokenPublico?: string;
 }
 
 function idDe(doc: { _id?: string; id?: string } | string | null | undefined): string {
@@ -106,6 +111,8 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
   const [errorCarga, setErrorCarga] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [copiaManual, setCopiaManual] = useState(false);
+  const [enlaces, setEnlaces] = useState<string[]>([]);
+  const [qr, setQr] = useState('');
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -115,7 +122,7 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
     setCopiaManual(false);
     try {
       const instancia = await getInstanciaById(instanciaId);
-      const [equiposRaw, evaluaciones] = await Promise.all([getEquipos(), getEvaluaciones()]);
+      const [equiposRaw, evaluaciones, publicados] = await Promise.all([getEquipos(), getEvaluaciones(), getEnlacesPublicos(instanciaId)]);
       const equipos = equiposDe(equiposRaw);
       const cuestionarios = cuestionariosDe(evaluaciones);
       const equipoId = idDe(instancia.equipoId);
@@ -124,6 +131,8 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
       const cuestionario = cuestionarios.find((item) => item.id === evaluacionId);
       setRonda({
         equipoId,
+        alcance: instancia.alcance,
+        evaluadoNombre: instancia.evaluadoNombre,
         equipo: equipo?.nombre || '',
         evaluacionId,
         titulo: cuestionario?.titulo || '',
@@ -131,8 +140,11 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
         tipo: cuestionario?.tipo,
         cantidadEsperada: Number(instancia.cantidadEsperada) || 0,
         modoRespuesta: instancia.modoRespuesta === 'identificada' ? 'identificada' : 'anonima',
-        minimoAnonimato: Number(instancia.minimoAnonimato) || 3,
+        minimoAnonimato: Number(instancia.minimoAnonimato) || 1,
+        tokenPublico: publicados.token,
       });
+      setEnlaces(publicados.urls);
+      setQr(await QRCode.toDataURL(publicados.urls.find((url: string) => !url.includes('localhost')) || publicados.urls[0]));
     } catch (error) {
       setRonda(null);
       if (esNoEncontrado(error)) setNoEncontrada(true);
@@ -146,7 +158,7 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
     cargar();
   }, [cargar]);
 
-  const link = `${window.location.origin}/responder/${instanciaId}`;
+  const link = enlaces.find((url) => !url.includes('localhost')) || enlaces[0] || `${window.location.origin}/r/${ronda?.tokenPublico || ''}`;
 
   const copiar = async () => {
     setCopiaManual(false);
@@ -200,6 +212,7 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
         </div>
         <p className="text-muted mb-4">Compartí este link con el equipo para empezar a recibir respuestas.</p>
         {ronda.equipo && <p className="mb-1">{ronda.equipo}</p>}
+        {ronda.evaluadoNombre && <p className="mb-1">Persona evaluada: {ronda.evaluadoNombre}</p>}
         {ronda.titulo && <p className="mb-1">{ronda.titulo}</p>}
         <p className="mb-2">
           {ronda.cantidadEsperada === 1
@@ -217,6 +230,8 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
           readOnly
           value={link}
         />
+        {enlaces.length > 1 && <div className="small text-muted mb-3">Enlaces disponibles en esta computadora: {enlaces.join(' · ')}</div>}
+        {qr && <div className="text-center mb-3"><img src={qr} alt="Código QR para responder la ronda" width={220} height={220} /></div>}
         {copiaManual && <p className="text-muted">Seleccioná el link y copialo.</p>}
         <button type="button" className="btn btn-primary" onClick={copiar}>
           {copiado ? 'Link copiado' : 'Copiar link para el equipo'}
@@ -242,10 +257,12 @@ function AbrirRonda({
   const [equipos, setEquipos] = useState<EquipoOpcion[]>([]);
   const [cuestionarios, setCuestionarios] = useState<CuestionarioOpcion[]>([]);
   const [equipoId, setEquipoId] = useState('');
+  const [alcance, setAlcance] = useState<'equipo' | 'persona' | 'individual'>(equipoPedido ? 'equipo' : 'individual');
+  const [evaluadoNombre, setEvaluadoNombre] = useState('');
   const [evaluacionId, setEvaluacionId] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [modoRespuesta, setModoRespuesta] = useState<'anonima' | 'identificada'>('anonima');
-  const [minimoAnonimato, setMinimoAnonimato] = useState('3');
+  const [minimoAnonimato, setMinimoAnonimato] = useState('1');
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(false);
   const [abriendo, setAbriendo] = useState(false);
@@ -263,8 +280,13 @@ function AbrirRonda({
       setEquipos(equiposCargados);
       setCuestionarios(cuestionariosCargados);
       setEquipoId(equipoElegido);
+       setAlcance(equipoElegido ? 'equipo' : 'individual');
       setEvaluacionId(elegir(cuestionariosCargados, evaluacionPedida));
-      setCantidad(cantidadInicial(equiposCargados.find((equipo) => equipo.id === equipoElegido)));
+       setCantidad(equipoElegido ? cantidadInicial(equiposCargados.find((equipo) => equipo.id === equipoElegido)) : '1');
+       if (!equipoElegido) {
+         setModoRespuesta('identificada');
+         setMinimoAnonimato('1');
+       }
     } catch {
       setEquipos([]);
       setCuestionarios([]);
@@ -281,17 +303,23 @@ function AbrirRonda({
   const elegirEquipo = (id: string) => {
     setEquipoId(id);
     setErrorApertura(false);
-    setCantidad(cantidadInicial(equipos.find((equipo) => equipo.id === id)));
+    setCantidad(id ? cantidadInicial(equipos.find((equipo) => equipo.id === id)) : '1');
+    if (!id) {
+      setModoRespuesta('identificada');
+      setMinimoAnonimato('1');
+    }
   };
 
   const abrir = async (event: FormEvent) => {
     event.preventDefault();
-    if (!equipoId || !evaluacionId || !cantidadValida(cantidad) || abriendo) return;
+    if (!evaluacionId || !cantidadValida(cantidad) || abriendo) return;
     setAbriendo(true);
     setErrorApertura(false);
     try {
       const creada = await crearInstancia({
-        equipoId,
+        ...(equipoId ? { equipoId } : {}),
+        alcance,
+        evaluadoNombre: alcance === 'persona' ? evaluadoNombre.trim() : '',
         evaluacionId,
         activadoEn: new Date().toISOString(),
         cantidadEsperada: Number(cantidad),
@@ -326,7 +354,7 @@ function AbrirRonda({
     );
   }
 
-  if (equipos.length === 0) {
+  if (equipos.length === 0 && !cuestionarios.length) {
     return (
       <LayoutBackoffice>
         <div className="container py-4">
@@ -356,15 +384,37 @@ function AbrirRonda({
 
   const equipo = equipos.find((item) => item.id === equipoId);
   const cuestionario = cuestionarios.find((item) => item.id === evaluacionId);
-  const mostrarEquipo = equipos.length > 1 && !pedidoValido(equipos, equipoPedido);
+  const mostrarEquipo = alcance !== 'individual';
   const mostrarCuestionario = cuestionarios.length > 1 && !pedidoValido(cuestionarios, evaluacionPedida);
-  const listo = Boolean(equipoId && evaluacionId && cantidadValida(cantidad));
+  const alcanceValido = alcance !== 'persona' || (Boolean(equipoId) && evaluadoNombre.trim().length > 0);
+  const listo = Boolean(evaluacionId && cantidadValida(cantidad) && alcanceValido);
 
   return (
     <LayoutBackoffice>
       <div className="container py-4">
         <h2 className="fw-bold mb-4">Abrí la ronda</h2>
-        <form onSubmit={abrir}>
+        <form onSubmit={abrir} noValidate>
+          <div className="mb-3">
+            <label htmlFor="alcance" className="form-label">¿Qué querés evaluar?</label>
+            <select id="alcance" className="form-select" value={alcance} onChange={(event) => {
+              const nuevoAlcance = event.target.value as 'equipo' | 'persona' | 'individual';
+              setAlcance(nuevoAlcance);
+              if (nuevoAlcance === 'individual') elegirEquipo('');
+              else if (!equipoId && equipos.length === 1) elegirEquipo(equipos[0].id);
+              setErrorApertura(false);
+            }} disabled={abriendo}>
+              <option value="equipo">El equipo</option>
+              <option value="persona">Una persona evaluada por el equipo</option>
+              <option value="individual">Una evaluación individual</option>
+            </select>
+            <p className="small text-muted mt-2 mb-0">{alcance === 'persona' ? 'El equipo responderá sobre la persona indicada.' : alcance === 'individual' ? 'Una sola persona responderá la evaluación.' : 'El equipo responderá sobre su propia experiencia.'}</p>
+          </div>
+          {alcance === 'persona' && (
+            <div className="mb-3">
+              <label htmlFor="evaluado-nombre" className="form-label">Persona evaluada</label>
+              <input id="evaluado-nombre" className="form-control" value={evaluadoNombre} onChange={(event) => setEvaluadoNombre(event.target.value)} placeholder="Ej.: María González" disabled={abriendo} />
+            </div>
+          )}
           {mostrarEquipo ? (
             <div className="mb-3">
               <label htmlFor="equipo" className="form-label">
@@ -442,8 +492,8 @@ function AbrirRonda({
                 <option value="anonima">Anónimas (recomendado)</option>
                 <option value="identificada">Identificadas</option>
               </select>
-              {modoRespuesta === 'anonima' ? <p className="small text-muted mb-0">No se mostrará quién respondió. Los resultados individuales no estarán disponibles y el resumen se habilita al alcanzar {minimoAnonimato} respuestas.</p> : <p className="small text-muted mb-0">Las respuestas podrán asociarse a una persona. Usá esta opción solo si el equipo fue informado y dio su consentimiento.</p>}
-              {modoRespuesta === 'anonima' && <div className="mt-3"><label htmlFor="minimo-anonimato" className="form-label small">Mínimo de respuestas para mostrar resultados</label><input id="minimo-anonimato" type="number" min={2} step={1} className="form-control" value={minimoAnonimato} onChange={(event) => setMinimoAnonimato(event.target.value)} disabled={abriendo} /></div>}
+              {modoRespuesta === 'anonima' ? <p className="small text-muted mb-0">No se mostrará quién respondió. Los resultados individuales no estarán disponibles y el resumen se habilita al alcanzar {minimoAnonimato} {Number(minimoAnonimato) === 1 ? 'respuesta' : 'respuestas'}.</p> : <p className="small text-muted mb-0">Las respuestas podrán asociarse a una persona. Usá esta opción solo si el equipo fue informado y dio su consentimiento.</p>}
+              {modoRespuesta === 'anonima' && <div className="mt-3"><label htmlFor="minimo-anonimato" className="form-label small">Mínimo de respuestas para mostrar resultados</label><input id="minimo-anonimato" type="number" min={1} step={1} className="form-control" value={minimoAnonimato} onChange={(event) => setMinimoAnonimato(event.target.value)} disabled={abriendo} /></div>}
             </div>
           </div>
 

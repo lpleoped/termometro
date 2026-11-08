@@ -2,10 +2,12 @@ import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LayoutBackoffice from '../../components/layouts/LayoutBackoffice';
 import { crearEvaluacion } from '../../services/evaluacionService';
+import { generarCuestionarioIA } from '../../services/iaSettingsService';
 
 interface PreguntaForm {
   texto: string;
   tipo: 'cuantitativo' | 'cualitativo';
+  direccion: 'positiva' | 'negativa';
 }
 
 interface SeccionForm {
@@ -21,7 +23,7 @@ function pesosQueSumanCien(cantidad: number): number[] {
 }
 
 function seccionNueva(peso: number): SeccionForm {
-  return { titulo: '', ponderacion: peso, preguntas: [{ texto: '', tipo: 'cuantitativo' }] };
+  return { titulo: '', ponderacion: peso, preguntas: [{ texto: '', tipo: 'cuantitativo', direccion: 'positiva' }] };
 }
 
 function conPesosRepartidos(secciones: SeccionForm[]): SeccionForm[] {
@@ -38,6 +40,13 @@ const AltaEvaluacion = () => {
   const [secciones, setSecciones] = useState<SeccionForm[]>([seccionNueva(100)]);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState(false);
+  const [rolIA, setRolIA] = useState('especialista en evaluación');
+  const [solicitudIA, setSolicitudIA] = useState('');
+  const [generandoIA, setGenerandoIA] = useState(false);
+  const [errorIA, setErrorIA] = useState('');
+  const [promptGenerado, setPromptGenerado] = useState('');
+  const [generadaConIA, setGeneradaConIA] = useState(false);
+  const [revisionHumanaConfirmada, setRevisionHumanaConfirmada] = useState(false);
   const navigate = useNavigate();
 
   const pesosCompletos = secciones.every((seccion) => seccion.ponderacion !== '');
@@ -92,7 +101,7 @@ const AltaEvaluacion = () => {
   const agregarPregunta = (seccionIndice: number) => {
     setSecciones((actuales) =>
       actuales.map((seccion, i) =>
-        i === seccionIndice ? { ...seccion, preguntas: [...seccion.preguntas, { texto: '', tipo: 'cuantitativo' }] } : seccion,
+        i === seccionIndice ? { ...seccion, preguntas: [...seccion.preguntas, { texto: '', tipo: 'cuantitativo', direccion: 'positiva' }] } : seccion,
       ),
     );
     setErrorGuardado(false);
@@ -118,13 +127,15 @@ const AltaEvaluacion = () => {
 
   const handleGuardar = async (event: FormEvent) => {
     event.preventDefault();
-    if (!formularioListo || guardando) return;
+    if (!formularioListo || guardando || (generadaConIA && !revisionHumanaConfirmada)) return;
     setGuardando(true);
     setErrorGuardado(false);
     try {
       const creada = await crearEvaluacion({
         titulo: titulo.trim(),
         tipo: 'CUSTOM',
+        origenCuestionario: generadaConIA ? 'ia' : 'manual',
+        revisionHumanaAprobada: !generadaConIA || revisionHumanaConfirmada,
         secciones: secciones.map((seccion, sidx) => ({
           titulo: seccion.titulo.trim(),
           ponderacion: Number(seccion.ponderacion),
@@ -132,6 +143,7 @@ const AltaEvaluacion = () => {
             id: `custom_${sidx + 1}_${i + 1}`,
             texto: pregunta.texto.trim(),
             tipo: pregunta.tipo,
+            direccion: pregunta.direccion,
           })),
         })),
       });
@@ -148,16 +160,69 @@ const AltaEvaluacion = () => {
     }
   };
 
+  const handleGenerarConIA = async () => {
+    if (!rolIA.trim() || !solicitudIA.trim() || generandoIA) return;
+    setGenerandoIA(true);
+    setErrorIA('');
+    try {
+      const resultado = await generarCuestionarioIA(rolIA.trim(), solicitudIA.trim());
+      setTitulo(resultado.cuestionario.titulo);
+      setSecciones(resultado.cuestionario.secciones.map((seccion) => ({ titulo: seccion.titulo, ponderacion: seccion.ponderacion, preguntas: seccion.indicadores.map(({ texto, tipo, direccion }) => ({ texto, tipo, direccion })) })));
+      setPromptGenerado(resultado.prompt);
+      setGeneradaConIA(true);
+      setRevisionHumanaConfirmada(false);
+      setErrorGuardado(false);
+    } catch (error: any) {
+      setErrorIA(error?.response?.data?.error || 'No se pudo generar el cuestionario. Revisá la configuración de IA.');
+    } finally {
+      setGenerandoIA(false);
+    }
+  };
+
   return (
     <LayoutBackoffice>
-      <div className="container py-4">
-        <div className="row justify-content-center">
-          <div className="col-lg-8">
-            <h2 className="fw-bold mb-2">Armá el cuestionario</h2>
-            <p className="text-muted mb-4">
+      <div className="container py-4 alta-evaluacion-page">
+        <div className="alta-evaluacion-header">
+          <div>
+            <span className="alta-eyebrow">Nueva evaluación</span>
+            <h1 className="fw-bold mb-2">Armá el cuestionario</h1>
+            <p className="text-muted mb-0">
               Las secciones ya suman 100. Ajustá el peso si hace falta.
             </p>
-            <form onSubmit={handleGuardar}>
+          </div>
+          <div className="alta-progress-note"><span className="alta-progress-dot" /> Guardado manual</div>
+        </div>
+        <div className="alta-evaluacion-grid">
+          <div className="card alta-assistant-card mb-4">
+              <div className="card-body">
+                <div className="alta-card-kicker">Asistente</div>
+                <h2 className="card-title">Creá una base con IA</h2>
+                <p className="card-text text-muted">Primero diseña un prompt experto y luego crea un cuestionario concreto. Siempre incorpora criterios de evaluación.</p>
+                <div className="mb-3">
+                  <label htmlFor="rol-ia" className="form-label fw-semibold">Rol experto</label>
+                  <input id="rol-ia" className="form-control" value={rolIA} onChange={(e) => setRolIA(e.target.value)} disabled={generandoIA || guardando} placeholder="Ej.: psicólogo organizacional" />
+                </div>
+                <div className="mb-3">
+                  <label htmlFor="solicitud-ia" className="form-label fw-semibold">¿Qué necesitás evaluar?</label>
+                  <textarea id="solicitud-ia" className="form-control" rows={3} value={solicitudIA} onChange={(e) => setSolicitudIA(e.target.value)} disabled={generandoIA || guardando} placeholder="Describí el objetivo, público y contexto del cuestionario..." />
+                </div>
+                {errorIA && <div className="alert alert-danger py-2" role="alert">{errorIA}</div>}
+                <button type="button" className="btn btn-outline-primary" onClick={handleGenerarConIA} disabled={generandoIA || guardando || !rolIA.trim() || !solicitudIA.trim()}>
+                  {generandoIA ? 'Diseñando y elaborando...' : 'Generar cuestionario con IA'}
+                </button>
+                {promptGenerado && <details className="mt-3"><summary className="text-muted small">Ver prompt experto utilizado</summary><pre className="small bg-light p-2 mt-2 text-wrap">{promptGenerado}</pre></details>}
+                {generadaConIA && (
+                  <div className="alert alert-warning mt-3 mb-0">
+                    <label className="form-check d-flex gap-2 align-items-start mb-0">
+                      <input className="form-check-input" type="checkbox" checked={revisionHumanaConfirmada} onChange={(e) => setRevisionHumanaConfirmada(e.target.checked)} disabled={guardando} />
+                      <span>Revisé cada pregunta, su claridad y adecuación al equipo. Apruebo este cuestionario para publicarlo.</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+          <div className="alta-builder-column">
+            <form className="alta-builder" onSubmit={handleGuardar}>
               {errorGuardado && (
                 <div className="alert alert-danger" role="alert">
                   No se pudo guardar el cuestionario.
@@ -255,6 +320,18 @@ const AltaEvaluacion = () => {
                           <option value="cuantitativo">Cuantitativo · escala 1 a 5</option>
                           <option value="cualitativo">Cualitativo · respuesta abierta</option>
                         </select>
+                        {pregunta.tipo === 'cuantitativo' && (
+                          <select
+                            className="form-select mt-2"
+                            aria-label="Dirección del indicador"
+                            value={pregunta.direccion}
+                            onChange={(e) => setSecciones((actuales) => actuales.map((seccion, si) => si === sidx ? { ...seccion, preguntas: seccion.preguntas.map((item, pi) => pi === i ? { ...item, direccion: e.target.value as PreguntaForm['direccion'] } : item) } : seccion))}
+                            disabled={guardando}
+                          >
+                            <option value="positiva">Interpretación: más alto es mejor</option>
+                            <option value="negativa">Interpretación: más alto es peor</option>
+                          </select>
+                        )}
                       </div>
                     ))}
                     <button
@@ -288,7 +365,7 @@ const AltaEvaluacion = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={!formularioListo || guardando}
+                  disabled={!formularioListo || guardando || (generadaConIA && !revisionHumanaConfirmada)}
                 >
                   {guardando ? 'Guardando el cuestionario...' : 'Guardar el cuestionario'}
                 </button>

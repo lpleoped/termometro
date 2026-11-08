@@ -9,7 +9,7 @@ function Footer() {
         <img src={logo} alt="Logo" width={22} height={22} style={{ opacity: 0.7 }} />
         Herramienta para medir y mejorar el clima organizacional
       </span>
-      <span className="text-end text-muted small">© 2026 Termómetro de Equipo. Todos los derechos reservados.</span>
+        <span className="text-end text-muted small">© 2026 Termómetro. Todos los derechos reservados.</span>
     </footer>
   );
 }

@@ -6,6 +6,7 @@ interface IIndicador {
   texto: string;
   descripcion?: string;
   tipo?: 'cuantitativo' | 'cualitativo';
+  direccion?: 'positiva' | 'negativa';
   obligatorio?: boolean;
 }
 
@@ -31,6 +32,8 @@ export interface IEvaluacion extends Document {
   configuracion?: IConfiguracionEvaluacion;
   secciones: ISeccion[];
   creadoPor: string;
+  origenCuestionario: 'manual' | 'ia';
+  revisionHumana: { estado: 'pendiente' | 'aprobada'; revisadoPor?: string; revisadoEn?: Date };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -40,6 +43,7 @@ const IndicadorSchema = new Schema<IIndicador>({
   texto: String,
   descripcion: String,
   tipo: { type: String, enum: ['cuantitativo', 'cualitativo'], default: 'cuantitativo' },
+  direccion: { type: String, enum: ['positiva', 'negativa'], default: 'positiva' },
   obligatorio: { type: Boolean, default: true },
 });
 
@@ -74,6 +78,8 @@ const EvaluacionSchema = new Schema<IEvaluacion>(
     configuracion: ConfiguracionEvaluacionSchema,
     secciones: { type: [SeccionSchema], required: true },
     creadoPor: { type: String, required: true },
+    origenCuestionario: { type: String, enum: ['manual', 'ia'], default: 'manual' },
+    revisionHumana: { estado: { type: String, enum: ['pendiente', 'aprobada'], default: 'aprobada' }, revisadoPor: String, revisadoEn: Date },
   },
   { timestamps: true },
 );

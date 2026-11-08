@@ -29,6 +29,13 @@ function fechaCorta(iso: string): string {
 }
 
 const GraficoHistorico = ({ puntos, instanciaId }: Props) => {
+  if (puntos.length === 1) return (
+    <div className="history-chart p-4">
+      <h3 className="h6">Primera medición</h3>
+      <p className="fs-3 mb-1">{puntos[0].indiceGlobal} / 100</p>
+      <p className="text-muted mb-0">Todavía no hay evolución para comparar. Se necesitan al menos dos rondas con resultados cuantitativos.</p>
+    </div>
+  );
   const chartData = {
     labels: puntos.map((punto) => fechaCorta(punto.activadoEn)),
     datasets: [

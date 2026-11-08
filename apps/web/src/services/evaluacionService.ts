@@ -10,6 +10,8 @@ export interface Evaluacion {
   descripcion?: string;
   activo?: boolean;
   tipo?: string;
+  origenCuestionario?: 'manual' | 'ia';
+  revisionHumanaAprobada?: boolean;
   secciones: Seccion[];
   createdAt?: string;
 }
@@ -18,6 +20,8 @@ export const crearEvaluacion = async (payload: {
   titulo: string;
   descripcion?: string;
   tipo?: string;
+  origenCuestionario?: 'manual' | 'ia';
+  revisionHumanaAprobada?: boolean;
   secciones: Seccion[];
 }): Promise<Evaluacion> => {
   const response = await api.post('/evaluaciones', payload);

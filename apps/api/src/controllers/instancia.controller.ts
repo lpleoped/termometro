@@ -3,6 +3,9 @@ import {
   crearInstanciaEvaluacionService,
   obtenerInstanciaPorIdService,
   listarInstanciasPorEquipoService,
+  obtenerRondaPublicaService,
+  cerrarInstanciaEvaluacionService,
+  obtenerEnlacesPublicosService,
 } from '../services/instancia.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 
@@ -11,16 +14,19 @@ export const crearInstanciaEvaluacion = async (
   res: Response,
 ): Promise<Response> => {
   try {
-    const { equipoId, evaluacionId, activadoEn, cantidadEsperada, descripcionLider, modoRespuesta, minimoAnonimato } = req.body;
+    const { equipoId, alcance, evaluadoNombre, evaluacionId, activadoEn, cantidadEsperada, descripcionLider, modoRespuesta, minimoAnonimato } = req.body;
+    if (!req.user?.id) return res.status(401).json({ error: 'Usuario no autenticado' });
     const resultado = await crearInstanciaEvaluacionService({
       equipoId,
+      alcance,
+      evaluadoNombre,
       evaluacionId,
       activadoEn,
       cantidadEsperada,
       descripcionLider,
       modoRespuesta,
       minimoAnonimato,
-    });
+    }, req.user.id);
     return res.status(201).json(resultado);
   } catch (error: any) {
     return res.status(400).json({ error: error.message || 'Error al crear instancia' });
@@ -36,8 +42,23 @@ export const obtenerInstanciaPorId = async (req: Request, res: Response): Promis
   }
 };
 
+export const obtenerRondaPublica = async (req: Request, res: Response): Promise<Response> => {
+  try { return res.json(await obtenerRondaPublicaService(String(req.params.token))); }
+  catch (error: any) { return res.status(404).json({ error: error.message || 'Ronda no disponible' }); }
+};
+
+export const cerrarInstanciaEvaluacion = async (req: AuthRequest, res: Response): Promise<Response> => {
+  try { if (!req.user?.id) return res.status(401).json({ error: 'Usuario no autenticado' }); return res.json(await cerrarInstanciaEvaluacionService(String(req.params.instanciaId), req.user.id)); }
+  catch (error: any) { return res.status(400).json({ error: error.message || 'No se pudo cerrar la ronda' }); }
+};
+
+export const obtenerEnlacesPublicos = async (req: AuthRequest, res: Response): Promise<Response> => {
+  try { if (!req.user?.id) return res.status(401).json({ error: 'Usuario no autenticado' }); return res.json(await obtenerEnlacesPublicosService(String(req.params.instanciaId), req.user.id)); }
+  catch (error: any) { return res.status(400).json({ error: error.message || 'No se pudieron obtener los enlaces' }); }
+};
+
 export const listarInstanciasPorEquipo = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
 ): Promise<Response> => {
   try {
@@ -45,7 +66,8 @@ export const listarInstanciasPorEquipo = async (
     if (!equipoId) {
       return res.status(400).json({ error: 'Falta el parámetro equipoId' });
     }
-    const instancias = await listarInstanciasPorEquipoService(equipoId.toString());
+    if (!req.user?.id) return res.status(401).json({ error: 'Usuario no autenticado' });
+    const instancias = await listarInstanciasPorEquipoService(equipoId.toString(), req.user.id);
     return res.status(200).json(instancias);
   } catch (error: any) {
     return res.status(400).json({ error: error.message });

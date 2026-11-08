@@ -2,7 +2,9 @@
 import api from './api';
 
 export const crearInstancia = async (payload: {
-  equipoId: string;
+  equipoId?: string;
+  alcance?: 'equipo' | 'persona' | 'individual';
+  evaluadoNombre?: string;
   evaluacionId: string;
   activadoEn: string;
   cantidadEsperada: number;
@@ -25,3 +27,5 @@ export const getInstanciaById = async (instanciaId: string) => {
     throw error;
   }
 };
+
+export const getEnlacesPublicos = async (instanciaId: string) => (await api.get(`/instancias/${instanciaId}/enlaces-publicos`)).data;

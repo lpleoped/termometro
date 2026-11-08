@@ -236,7 +236,7 @@ export class PDFService {
     pdf.setFontSize(18);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(59, 130, 246); // Azul primario
-    pdf.text('Termómetro de Equipo', margin, 20);
+  pdf.text('Termómetro', margin, 20);
 
     // Información de la evaluación
     pdf.setFontSize(14);
@@ -265,7 +265,7 @@ export class PDFService {
     pdf.setFont('helvetica', 'italic');
     pdf.setTextColor(107, 114, 128);
     pdf.text(
-      `Informe generado automáticamente por Termómetro de Equipo | ${options.fecha}`,
+  `Informe generado automáticamente por Termómetro | ${options.fecha}`,
       margin,
       pageHeight - 10
     );
@@ -336,4 +336,4 @@ export class PDFService {
       notification.remove();
     }, 5000);
   }
-} 
+}

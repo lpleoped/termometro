@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import mongoose from 'mongoose';
+import { validRecordId } from '../domain/feature-records';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { createTeamContext, deleteTeamContext, listTeamContext, updateTeamContext } from '../services/team-context.service';
 
@@ -24,10 +24,10 @@ const validate = (body: any, partial = false) => {
   return null;
 };
 const dto = (row: any) => ({ ...row, id: String(row._id), teamId: String(row.teamId) });
-const validId = (value: string) => mongoose.isValidObjectId(value);
+const validId = (value: string) => validRecordId(value);
 
 const invalidPath = (req: AuthRequest) => !validId(String(req.params.equipoId)) || (req.params.itemId !== undefined && !validId(String(req.params.itemId)));
 export const getTeamContext = async (req: AuthRequest, res: Response) => { if (invalidPath(req)) return res.status(400).json({ error: 'Identificador inválido' }); const result = await listTeamContext(String(req.params.equipoId), userId(req)); if (!result) return res.status(404).json({ error: 'Equipo no encontrado' }); return res.json(result.map(dto)); };
-export const postTeamContext = async (req: AuthRequest, res: Response) => { if (invalidPath(req)) return res.status(400).json({ error: 'Identificador inválido' }); const error = validate(req.body); if (error) return res.status(400).json({ error }); const result = await createTeamContext(String(req.params.equipoId), userId(req), req.body); if (!result) return res.status(404).json({ error: 'Equipo no encontrado' }); return res.status(201).json(dto(result.toObject())); };
+export const postTeamContext = async (req: AuthRequest, res: Response) => { if (invalidPath(req)) return res.status(400).json({ error: 'Identificador inválido' }); const error = validate(req.body); if (error) return res.status(400).json({ error }); const result = await createTeamContext(String(req.params.equipoId), userId(req), req.body); if (!result) return res.status(404).json({ error: 'Equipo no encontrado' }); return res.status(201).json(dto(result)); };
 export const patchTeamContext = async (req: AuthRequest, res: Response) => { if (invalidPath(req)) return res.status(400).json({ error: 'Identificador inválido' }); const error = validate(req.body, true); if (error) return res.status(400).json({ error }); const result = await updateTeamContext(String(req.params.equipoId), String(req.params.itemId), userId(req), req.body); if (!result) return res.status(404).json({ error: 'Contexto no encontrado' }); return res.json(dto(result)); };
 export const removeTeamContext = async (req: AuthRequest, res: Response) => { if (invalidPath(req)) return res.status(400).json({ error: 'Identificador inválido' }); const result = await deleteTeamContext(String(req.params.equipoId), String(req.params.itemId), userId(req)); if (!result) return res.status(404).json({ error: 'Contexto no encontrado' }); return res.json(dto(result)); };

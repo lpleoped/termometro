@@ -11,16 +11,13 @@ La idea y el trabajo creativo son de Leonardo Pedreira (charla pública ~2015; d
 ## Estructura
 
 ```
-apps/api       → API (Express + TS + Mongo)
+apps/api       → API (Express + TS + Mongo / JSON local)
 apps/web       → UI (React + Vite + TS)
+apps/desktop   → Empaquetado instalable (Electron)
 packages/shared → tipos y contratos compartidos
-docs/
 ```
 
-- Arquitectura: [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)
-- Indicadores: [docs/INDICADORES.md](docs/INDICADORES.md)
-- API: [docs/API.md](docs/API.md)
-- Alcance: [docs/PLAN_INDEPENDENCIA.md](docs/PLAN_INDEPENDENCIA.md)
+Open source autorizado (Apache-2.0). Atribución y titularidad: [docs/ORIGEN_Y_TITULARIDAD.md](docs/ORIGEN_Y_TITULARIDAD.md), `NOTICE`, `COPYRIGHT`, `LICENSE`.
 
 ## Estado y seguridad
 
@@ -30,9 +27,7 @@ Las API keys de proveedores IA se cargan por la interfaz y se almacenan cifradas
 
 ## Correr en local
 
-Guía completa: [docs/CORRIDA_LOCAL.md](docs/CORRIDA_LOCAL.md).
-
-**Requisitos:** Node ≥ 20, MongoDB local.
+**Requisitos:** Node ≥ 20. MongoDB solo si usás `STORAGE_DRIVER=mongo`.
 
 ```bash
 npm install
@@ -45,10 +40,3 @@ npm run dev       # API + web juntos
 ```
 
 Login demo: `test@test.com` / `123123`
-
-Checklist: [docs/SMOKE_CHECKLIST.md](docs/SMOKE_CHECKLIST.md).
-
-## Skills del agente
-
-Proyecto: `.cursor/skills/` (`producto-termometro`, `dominio-indicadores`, `arquitectura-api`, `arquitectura-web`, …).  
-Personales: `arquitectura-software`, `product-manager`, `legal-open-source-ibm`, `pedido-feature`.

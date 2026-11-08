@@ -18,7 +18,11 @@
     "build": "npm run build -w @termometro/shared && npm run build -w @termometro/api && npm run build -w @termometro/web",
     "start:api": "npm run start -w @termometro/api",
     "preview:web": "npm run preview -w @termometro/web",
-    "start": "concurrently --kill-others-on-fail --names API,WEB --prefix name \"npm run start:api\" \"npm run preview:web\""
+    "start": "concurrently --kill-others-on-fail --names API,WEB --prefix name \"npm run start:api\" \"npm run preview:web\"",
+    "build:desktop": "npm run build && npm run build -w @termometro/desktop",
+    "desktop": "npm run build:desktop && npm run start -w @termometro/desktop",
+    "package:win": "npm run build && npm run package:win -w @termometro/desktop"
+    ,"local": "npm run setup:dev && npm run build && npm run start:api"
   },
   "engines": {
     "node": ">=20"

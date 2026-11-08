@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
+
 import { getTeamContext, patchTeamContext, postTeamContext, removeTeamContext } from '../controllers/team-context.controller';
 const router = Router(); router.use(authMiddleware);
 router.get('/equipos/:equipoId/contexto', getTeamContext); router.post('/equipos/:equipoId/contexto', postTeamContext);

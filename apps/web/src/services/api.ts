@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 const getApiBaseUrl = () => {
+  const runtimeUrl = (window as Window & { __TERMOMETRO_API_URL__?: string }).__TERMOMETRO_API_URL__;
+  if (runtimeUrl) return runtimeUrl;
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }

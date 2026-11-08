@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import api from '../services/api';
 import axios from 'axios';
-import type { AIAnalysisRequest } from '@termometro/shared';
+import type { AIAnalysisRequest, AIAnalysisResponse } from '@termometro/shared';
 
 export type AIProviderKind = 'openai-compatible' | 'azure-openai' | 'ollama';
 
@@ -18,18 +18,7 @@ export interface AIProvider extends Omit<AIProviderInput, 'apiKey'> {
   status: 'active' | 'invalid' | 'unverified';
 }
 
-export interface AIAnalysis {
-  id: string;
-  resumen: string;
-  fortalezas: string[];
-  alertas: string[];
-  recomendaciones: string[];
-  nivelConfianza: number;
-  fuentes: string[];
-  fuentesTecnicas?: string[];
-  contextoUtilizado?: string[];
-  contextoOmitido?: number;
-}
+export type AIAnalysis = AIAnalysisResponse;
 
 interface UseIAState {
   loading: boolean;

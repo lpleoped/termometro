@@ -1,9 +1,11 @@
-import { Respuesta, IRespuesta } from '../models/Respuesta';
-import { InstanciaEvaluacion } from '../models/InstanciaEvaluacion';
-import { Evaluacion } from '../models/Evaluacion';
+import type { IRespuesta } from '../models/Respuesta';
+import { evaluationRepository } from '../repositories/evaluation.repository';
+import { responseRepository } from '../repositories/response.repository';
+import { roundRepository } from '../repositories/round.repository';
 
 interface CrearRespuestaInput {
-  instanciaEvaluacionId: string;
+  instanciaEvaluacionId?: string;
+  tokenPublico?: string;
   respuestas: Array<{
     indicadorId: string;
     valor?: number;
@@ -15,22 +17,29 @@ interface CrearRespuestaInput {
   };
   identidad?: { nombre?: string; email?: string };
   consentimientoIdentificado?: boolean;
+  idempotencyKey?: string;
 }
 
 export const crearRespuestaService = async (data: CrearRespuestaInput): Promise<IRespuesta> => {
-  const { instanciaEvaluacionId, respuestas, comentariosAbiertos, identidad, consentimientoIdentificado } = data;
+  const { instanciaEvaluacionId, tokenPublico, respuestas, comentariosAbiertos, identidad, consentimientoIdentificado, idempotencyKey } = data;
 
-  const instancia = await InstanciaEvaluacion.findById(instanciaEvaluacionId);
+  const instancia = tokenPublico ? await roundRepository().findByPublicToken(tokenPublico) : instanciaEvaluacionId ? await roundRepository().findById(instanciaEvaluacionId) : null;
   if (!instancia) throw new Error('Instancia de evaluación no encontrada');
+  if (instancia.estado !== 'activa') throw new Error('La ronda está cerrada');
+  if (idempotencyKey) {
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) throw new Error('Clave de idempotencia inválida');
+    const previous = await responseRepository().findByIdempotency(instancia._id, idempotencyKey);
+    if (previous) return previous as unknown as IRespuesta;
+  }
   if (instancia.modoRespuesta === 'identificada') {
     if (!consentimientoIdentificado) throw new Error('Necesitás aceptar el consentimiento para responder esta ronda');
     if (!identidad?.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identidad.email)) throw new Error('Ingresá un email válido para esta ronda identificada');
   }
 
-  const evaluacion = await Evaluacion.findById(instancia.evaluacion);
+  const evaluacion = await evaluationRepository().findById(String(instancia.evaluacion));
   if (!evaluacion) throw new Error('Evaluación asociada no encontrada');
 
-  const indicadoresValidos = evaluacion.secciones.flatMap((s) => s.indicadores.map((i) => i.id));
+  const indicadoresValidos = evaluacion.secciones.flatMap((s: any) => s.indicadores.map((i: any) => i.id));
   const idsRecibidos = respuestas.map((r) => r.indicadorId);
   const idsUnicos = new Set(idsRecibidos);
 
@@ -55,13 +64,12 @@ export const crearRespuestaService = async (data: CrearRespuestaInput): Promise<
     }
   }
 
-  const nuevaRespuesta = new Respuesta({
+  return responseRepository().insert({
     instanciaEvaluacion: instancia._id,
     respuestas,
     comentariosAbiertos,
     identidad: instancia.modoRespuesta === 'identificada' ? identidad : undefined,
-    consentimientoIdentificado: instancia.modoRespuesta === 'identificada' ? true : false,
-  });
-
-  return nuevaRespuesta.save();
+    consentimientoIdentificado: instancia.modoRespuesta === 'identificada',
+    idempotencyKey,
+  }) as unknown as Promise<IRespuesta>;
 };

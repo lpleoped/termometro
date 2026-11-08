@@ -1,0 +1,66 @@
+{
+  "name": "@termometro/desktop",
+  "private": true,
+  "version": "0.0.6",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && electron .",
+    "prepare:runtime": "npm install --omit=dev --prefix .runtime",
+    "package:win": "npm run build && npm run prepare:runtime && node scripts/package.cjs",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "package:win:dir": "npm run build && npm run prepare:runtime && electron-builder --win dir"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "electron": "36.9.5",
+    "electron-builder": "^26.18.0",
+    "typescript": "~5.7.2"
+  },
+  "build": {
+    "appId": "com.termometrodeequipo.desktop",
+    "productName": "Termómetro de Equipo",
+    "artifactName": "Termometro-de-Equipo-Setup-${version}.${ext}",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../api/dist",
+        "to": "api/dist"
+      },
+      {
+        "from": "../web/dist",
+        "to": "web/dist"
+      },
+      {
+        "from": ".runtime/node_modules",
+        "to": "node_modules"
+      },
+      {
+        "from": "../../packages/shared",
+        "to": "node_modules/@termometro/shared"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "directories": {
+      "output": "release"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.12"
+  }
+}
