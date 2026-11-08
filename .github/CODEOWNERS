@@ -1,0 +1,23 @@
+# CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Por defecto, @lpleoped revisa todos los cambios
+* @lpleoped
+
+# Archivos críticos de seguridad
+SECURITY.md @lpleoped
+.github/workflows/release-desktop.yml @lpleoped
+apps/api/src/middleware/auth*.ts @lpleoped
+apps/api/src/services/auth*.ts @lpleoped
+apps/api/src/services/integration.service.ts @lpleoped
+scripts/setup-dev.mjs @lpleoped
+
+# Configuración de CI y dependencias
+.github/workflows/ @lpleoped
+.github/dependabot.yml @lpleoped
+package.json @lpleoped
+package-lock.json @lpleoped
+
+# Documentación de contribución
+CONTRIBUTING.md @lpleoped
+docs/branch-protection.md @lpleoped

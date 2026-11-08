@@ -17,6 +17,7 @@ jobs:
     name: Build and publish Windows installer
     runs-on: windows-latest
     timeout-minutes: 90
+    if: github.repository == 'lpleoped/termometro'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

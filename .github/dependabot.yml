@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # Mantener dependencias npm actualizadas
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      # Agrupar actualizaciones de desarrollo
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "vite"
+          - "eslint*"
+          - "prettier"
+          - "*-dev"
+        update-types:
+          - "minor"
+          - "patch"
+      # Agrupar actualizaciones de producción
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+          - "typescript"
+          - "vite"
+          - "eslint*"
+          - "prettier"
+          - "*-dev"
+        update-types:
+          - "patch"
+    labels:
+      - "dependencies"
+      - "automated"
+
+  # Mantener GitHub Actions actualizadas
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
