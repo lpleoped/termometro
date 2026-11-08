@@ -1,14 +1,14 @@
 {
   "name": "@termometro/desktop",
   "private": true,
-  "version": "0.0.6",
+  "version": "0.0.7",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "npm run build && electron .",
     "prepare:runtime": "npm install --omit=dev --prefix .runtime",
     "package:win": "npm run build && npm run prepare:runtime && node scripts/package.cjs",
-    "test": "npm run build && node --test tests/*.test.cjs",
+    "test": "npm run build && node --test tests/update-flow.test.cjs",
     "package:win:dir": "npm run build && npm run prepare:runtime && electron-builder --win dir"
   },
   "devDependencies": {

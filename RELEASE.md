@@ -31,18 +31,13 @@ cd "c:\Users\lpleo\OneDrive\Escritorio\Programación\Trabajo\IBM\termometro-de-e
 git checkout main
 git pull origin main
 
-# 2) La versión del desktop debe ser la del tag (hoy: 0.0.6)
+# 2) La versión del desktop debe ser la del tag
 Get-Content apps/desktop/package.json | Select-String '"version"'
 
-# 3) Si necesitás subir versión:
-# npm version 0.0.7 -w @termometro/desktop --no-git-tag-version
-# git add apps/desktop/package.json package-lock.json
-# git commit -m "Bump desktop a 0.0.7."
-# git push origin main
-
-# 4) Tag anotado y push del tag (dispara el release)
-git tag -a v0.0.6 -m "Release desktop 0.0.6"
-git push origin v0.0.6
+# 3) Tag anotado y push del tag (dispara el release)
+# Si un tag ya falló, no lo reutilices: subí versión (p. ej. 0.0.7) y tageá de nuevo.
+git tag -a v0.0.7 -m "Release desktop 0.0.7"
+git push origin v0.0.7
 ```
 
 Seguí el workflow en:
