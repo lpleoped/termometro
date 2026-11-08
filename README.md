@@ -60,3 +60,11 @@ npm run dev       # API + web juntos
 ```
 
 Usuario demo del seed (solo desarrollo local): `test@test.com` / `123123`
+
+## Contribuir
+
+¿Querés contribuir al proyecto? Leé la [guía de contribución](CONTRIBUTING.md) para aprender cómo configurar el proyecto, enviar cambios y entender el flujo de trabajo.
+
+## Seguridad
+
+Si descubrís una vulnerabilidad de seguridad, **no la reportes en issues públicos**. Leé nuestra [política de seguridad](SECURITY.md) para saber cómo reportar de forma responsable.
