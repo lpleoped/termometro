@@ -4,8 +4,7 @@ import { responseRepository } from '../repositories/response.repository';
 import { roundRepository } from '../repositories/round.repository';
 
 interface CrearRespuestaInput {
-  instanciaEvaluacionId?: string;
-  tokenPublico?: string;
+  tokenPublico: string;
   respuestas: Array<{
     indicadorId: string;
     valor?: number;
@@ -21,13 +20,13 @@ interface CrearRespuestaInput {
 }
 
 export const crearRespuestaService = async (data: CrearRespuestaInput): Promise<IRespuesta> => {
-  const { instanciaEvaluacionId, tokenPublico, respuestas, comentariosAbiertos, identidad, consentimientoIdentificado, idempotencyKey } = data;
+  const { tokenPublico, respuestas, comentariosAbiertos, identidad, consentimientoIdentificado, idempotencyKey } = data;
 
-  if (tokenPublico !== undefined && typeof tokenPublico !== 'string') throw new Error('Token público inválido');
-  if (instanciaEvaluacionId !== undefined && typeof instanciaEvaluacionId !== 'string') throw new Error('ID de instancia inválido');
-  if (tokenPublico && !/^[A-Za-z0-9_-]{40,64}$/.test(tokenPublico)) throw new Error('Formato de token público inválido');
+  if (!tokenPublico) throw new Error('Se requiere un token público válido');
+  if (typeof tokenPublico !== 'string') throw new Error('Token público inválido');
+  if (!/^[A-Za-z0-9_-]{40,64}$/.test(tokenPublico)) throw new Error('Formato de token público inválido');
 
-  const instancia = tokenPublico ? await roundRepository().findByPublicToken(tokenPublico) : instanciaEvaluacionId ? await roundRepository().findById(instanciaEvaluacionId) : null;
+  const instancia = await roundRepository().findByPublicToken(tokenPublico);
   if (!instancia) throw new Error('Instancia de evaluación no encontrada');
   if (instancia.estado !== 'activa') throw new Error('La ronda está cerrada');
   if (idempotencyKey) {
