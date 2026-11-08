@@ -186,16 +186,14 @@ export interface AIAnalysisRequest {
   includeHistorico?: boolean;
 }
 
+/** Preset size options for AI analysis budget */
+export type AIBudgetPreset = 'pequeño' | 'estándar' | 'grande' | 'muy-grande' | 'sin-límite';
+
 /** Shared across every AI feature and team belonging to the signed-in account. */
 export interface AISettings {
   enabled: boolean;
   defaultProviderId: string | null;
-  limits?: {
-    maxQuestionnaireInput?: number;
-    maxQualitativeText?: number;
-    maxContextChars?: number;
-    maxAnalysesPerHour?: number;
-  };
+  budgetPreset?: AIBudgetPreset;
 }
 
 export const AI_ANALYSIS_SCHEMA_VERSION = 'team-climate-analysis.v1';

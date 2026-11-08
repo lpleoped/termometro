@@ -1,8 +1,15 @@
 import { featureRepository } from '../repositories/feature.repository';
 import { toSafeTeamContext } from './privacy-transformer.service';
 
+import { getBudgetLimits, DEFAULT_PRESET } from './ai-budget-presets';
+
 const MAX_ITEMS = 20;
-const MAX_CHARS = Number(process.env.AI_MAX_CONTEXT_CHARS) || 32000; // Increased from 16000 for detailed context
+
+// Get context limit from default preset or env var fallback
+const getMaxContextChars = () => {
+  if (process.env.AI_MAX_CONTEXT_CHARS) return Number(process.env.AI_MAX_CONTEXT_CHARS);
+  return getBudgetLimits(DEFAULT_PRESET).maxContextChars;
+};
 const importancePriority: Record<string, number> = { critical: 30, relevant: 20, informative: 10 };
 const influencePriority: Record<string, number> = { precondition: 30, action: 28, interpretation_and_action: 26, risk: 24, group_action: 22, interpretation: 15, do_not_act_directly: 8 };
 
@@ -35,10 +42,11 @@ export const selectContextCandidates = (candidates: Array<any>, now = new Date()
   eligible.sort((a, b) => ((importancePriority[b.importance] || 0) + (influencePriority[b.influence] || 0)) - ((importancePriority[a.importance] || 0) + (influencePriority[a.influence] || 0)) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   const selected: SelectedTeamContextItem[] = [];
   let characterCount = 0;
+  const maxContextChars = getMaxContextChars();
   for (const item of eligible) {
     if (selected.length >= MAX_ITEMS) break;
     const projected = characterCount + item.title.length + item.content.length;
-    if (projected > MAX_CHARS) continue;
+    if (projected > maxContextChars) continue;
     selected.push(toSafeTeamContext({ id: String(item._id || item.id), type: item.type, title: item.title, content: item.content, source: item.source, status: item.status, confidence: item.confidence, version: item.version, importance: item.importance || 'relevant', sensitivity: item.sensitivity || 'normal', influence: item.influence || 'interpretation_and_action' }));
     characterCount = projected;
   }
