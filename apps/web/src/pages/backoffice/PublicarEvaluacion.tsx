@@ -113,6 +113,11 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
   const [copiaManual, setCopiaManual] = useState(false);
   const [enlaces, setEnlaces] = useState<string[]>([]);
   const [qr, setQr] = useState('');
+  const [networkWarning, setNetworkWarning] = useState<{
+    show: boolean;
+    isPublic: boolean;
+    lanUnhealthy: boolean;
+  }>({ show: false, isPublic: false, lanUnhealthy: false });
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -120,9 +125,24 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
     setErrorCarga(false);
     setCopiado(false);
     setCopiaManual(false);
+    setNetworkWarning({ show: false, isPublic: false, lanUnhealthy: false });
     try {
       const instancia = await getInstanciaById(instanciaId);
       const [equiposRaw, evaluaciones, publicados] = await Promise.all([getEquipos(), getEvaluaciones(), getEnlacesPublicos(instanciaId)]);
+      
+      // Check network status (desktop only, best-effort)
+      try {
+        const networkStatus = await fetch('/api/network-status').then(r => r.ok ? r.json() : null);
+        if (networkStatus && networkStatus.isDesktop) {
+          const isPublic = networkStatus.profileType === 'Public';
+          const lanUnhealthy = !networkStatus.lanHealthy;
+          if (isPublic || lanUnhealthy) {
+            setNetworkWarning({ show: true, isPublic, lanUnhealthy });
+          }
+        }
+      } catch {
+        // Ignore network check errors (not critical)
+      }
       const equipos = equiposDe(equiposRaw);
       const cuestionarios = cuestionariosDe(evaluaciones);
       const equipoId = idDe(instancia.equipoId);
@@ -222,6 +242,38 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
             : `Deberían responder ${ronda.cantidadEsperada} personas.`}
         </p>
         <p className="small text-muted mb-4">Participación: 0 de {ronda.cantidadEsperada} respuestas</p>
+        {networkWarning.show && (
+          <div className="alert alert-warning mb-4" role="alert">
+            <div className="d-flex gap-2">
+              <div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-exclamation-triangle-fill flex-shrink-0 me-2" viewBox="0 0 16 16">
+                  <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                </svg>
+              </div>
+              <div>
+                <strong>Aviso de configuración de red</strong>
+                <p className="mb-2 mt-2">
+                  {networkWarning.isPublic && (
+                    <>Tu red Wi-Fi está configurada como <strong>&quot;Red pública&quot;</strong>. Por seguridad, Windows bloquea las conexiones LAN en redes públicas.</>
+                  )}
+                  {!networkWarning.isPublic && networkWarning.lanUnhealthy && (
+                    <>No se puede acceder al servidor desde la red local. El firewall de Windows puede estar bloqueando el puerto 3210.</>
+                  )}
+                </p>
+                <p className="mb-2">
+                  <strong>Para que otros dispositivos puedan acceder al cuestionario:</strong>
+                </p>
+                <ol className="mb-0 ps-3">
+                  <li>Abre <strong>Configuración de Windows</strong> → <strong>Red e Internet</strong></li>
+                  <li>Selecciona tu conexión Wi-Fi actual</li>
+                  <li>En <strong>&quot;Tipo de perfil de red&quot;</strong>, cambia de <strong>&quot;Público&quot;</strong> a <strong>&quot;Privado&quot;</strong></li>
+                  <li>Reinstala o actualiza Termómetro de Equipo a la versión 0.0.9 o superior</li>
+                  <li>Recarga esta página para verificar</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        )}
         <label htmlFor="link-equipo" className="form-label">
           Link para el equipo
         </label>

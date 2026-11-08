@@ -18,6 +18,7 @@ import aiRoutes from './routes/ai.routes';
 import integrationRoutes from './routes/integration.routes';
 import teamContextRoutes from './routes/team-context.routes';
 import installationRoutes from './routes/installation.routes';
+import networkStatusRoutes from './routes/network-status.routes';
 import { localManagement } from './middleware/local-management.middleware';
 
 dotenv.config();
@@ -79,6 +80,7 @@ app.get('/termometro-runtime.js', (_req, res) => {
 
 app.use('/api', healthRoutes);
 app.use('/api', installationRoutes);
+app.use('/api', networkStatusRoutes);
 app.use('/api', authRoutes);
 app.use('/api', equipoRoutes);
 app.use('/api', evaluacionRoutes);
