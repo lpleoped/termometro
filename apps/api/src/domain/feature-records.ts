@@ -97,7 +97,17 @@ export interface ITeamIntegrationSettings extends FeatureRecord {
   mondayConnectionId?: string;
   mondayBoardId?: string;
 }
-export interface AISettingsRecord extends FeatureRecord { userId: string; enabled: boolean; defaultProviderId: string | null; }
+export interface AISettingsRecord extends FeatureRecord {
+  userId: string;
+  enabled: boolean;
+  defaultProviderId: string | null;
+  limits?: {
+    maxQuestionnaireInput?: number;
+    maxQualitativeText?: number;
+    maxContextChars?: number;
+    maxAnalysesPerHour?: number;
+  };
+}
 export interface FeatureRecords {
  aiProviders: IAIProvider; aiSettings: AISettingsRecord; aiAnalyses: IAIAnalysis;
  accionesPlan: IAccionPlan; teamContextItems: ITeamContextItem;

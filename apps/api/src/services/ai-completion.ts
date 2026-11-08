@@ -5,7 +5,7 @@ import http from 'node:http';
 import https from 'node:https';
 
 export const AI_CHECK_VERSION = 2;
-export const AI_TIMEOUT_MS = 120_000;
+export const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 180_000; // Increased from 120s to 180s for cold-start
 
 const privateEndpointOverride = () => process.env.NODE_ENV !== 'production' && process.env.AI_ALLOW_PRIVATE_ENDPOINTS === 'true';
 const blockedHostname = (hostname: string) => ['localhost', 'localhost.localdomain'].includes(hostname.toLowerCase()) || hostname.endsWith('.localhost') || hostname.endsWith('.internal');
@@ -51,7 +51,8 @@ export function aiError(error: unknown): AIRequestError {
   if (error instanceof AIRequestError) return error;
   if (axios.isAxiosError(error)) {
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-      return new AIRequestError('AI_TIMEOUT', 'El modelo no terminó en 2 minutos. Podés reintentar o elegir un modelo más rápido en Configuración de IA.', 504, 'La solicitud superó el tiempo máximo configurado de 120 segundos.');
+      const timeoutSeconds = Math.round(AI_TIMEOUT_MS / 1000);
+      return new AIRequestError('AI_TIMEOUT', `El modelo no respondió en ${timeoutSeconds} segundos. La primera llamada puede tardar más (modelo "frío"). Reintentá o elegí un modelo más rápido en Configuración de IA.`, 504, `La solicitud superó el tiempo máximo configurado de ${timeoutSeconds} segundos.`);
     }
     const status = error.response?.status;
     const code = error.response?.data?.error?.code;

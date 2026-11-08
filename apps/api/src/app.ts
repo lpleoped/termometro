@@ -20,6 +20,7 @@ import teamContextRoutes from './routes/team-context.routes';
 import installationRoutes from './routes/installation.routes';
 import networkStatusRoutes from './routes/network-status.routes';
 import { localManagement } from './middleware/local-management.middleware';
+import { lanSecurityMiddleware } from './middleware/lan-security.middleware';
 
 dotenv.config();
 
@@ -77,6 +78,10 @@ app.get('/termometro-runtime.js', (_req, res) => {
   res.set('Cache-Control', 'no-store').type('application/javascript')
     .send('window.__TERMOMETRO_API_URL__ = "/api";');
 });
+
+// LAN security: in desktop LOCAL_NETWORK mode, restrict non-loopback clients
+// to public respondent surface only (health, /responder/:token, /r/:token, POST /respuestas)
+app.use(lanSecurityMiddleware);
 
 app.use('/api', healthRoutes);
 app.use('/api', installationRoutes);
