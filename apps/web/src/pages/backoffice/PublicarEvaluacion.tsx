@@ -143,8 +143,10 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
         minimoAnonimato: Number(instancia.minimoAnonimato) || 1,
         tokenPublico: publicados.token,
       });
-      setEnlaces(publicados.urls);
-      setQr(await QRCode.toDataURL(publicados.urls.find((url: string) => !url.includes('localhost')) || publicados.urls[0]));
+      // Support new URL format with interface name (backwards compatible)
+      const urlList = publicados.urls.map((item: any) => typeof item === 'string' ? item : item.url);
+      setEnlaces(urlList);
+      setQr(await QRCode.toDataURL(urlList.find((url: string) => !url.includes('localhost')) || urlList[0]));
     } catch (error) {
       setRonda(null);
       if (esNoEncontrado(error)) setNoEncontrada(true);

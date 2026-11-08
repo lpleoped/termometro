@@ -19,12 +19,21 @@ interface CrearRespuestaInput {
   idempotencyKey?: string;
 }
 
+const isValidPublicToken = (token: string): boolean => {
+  // UUID format (legacy): 8-4-4-4-12 with hyphens (36 chars)
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // Base64url format (current): 40-64 chars, alphanumeric plus underscore and hyphen
+  const base64urlPattern = /^[A-Za-z0-9_-]{40,64}$/;
+  
+  return uuidPattern.test(token) || base64urlPattern.test(token);
+};
+
 export const crearRespuestaService = async (data: CrearRespuestaInput): Promise<IRespuesta> => {
   const { tokenPublico, respuestas, comentariosAbiertos, identidad, consentimientoIdentificado, idempotencyKey } = data;
 
   if (!tokenPublico) throw new Error('Se requiere un token público válido');
   if (typeof tokenPublico !== 'string') throw new Error('Token público inválido');
-  if (!/^[A-Za-z0-9_-]{40,64}$/.test(tokenPublico)) throw new Error('Formato de token público inválido');
+  if (!isValidPublicToken(tokenPublico)) throw new Error('Formato de token público inválido');
 
   const instancia = await roundRepository().findByPublicToken(tokenPublico);
   if (!instancia) throw new Error('Instancia de evaluación no encontrada');
