@@ -25,7 +25,8 @@ docs/*
 # Empaquetado desktop local (artefactos grandes)
 apps/desktop/release/
 apps/desktop/release-*/
-apps/desktop/.runtime/
+apps/desktop/.runtime/node_modules/
+apps/desktop/.runtime/package-lock.json
 
 # Build suelto de Electron en la raíz (no es fuente)
 /main.js

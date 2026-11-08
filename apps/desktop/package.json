@@ -1,7 +1,7 @@
 {
   "name": "@termometro/desktop",
   "private": true,
-  "version": "0.0.11",
+  "version": "0.0.12",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -22,9 +22,12 @@
     "productName": "Termómetro de Equipo",
     "artifactName": "Termometro-de-Equipo-Setup-${version}.${ext}",
     "asar": true,
+    "npmRebuild": false,
     "files": [
       "dist/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules",
+      "!../../node_modules"
     ],
     "extraResources": [
       {
@@ -55,7 +58,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "include": "installer-firewall.nsh"
+      "include": "installer-firewall.nsh",
+      "compression": "normal"
     },
     "directories": {
       "output": "release"
