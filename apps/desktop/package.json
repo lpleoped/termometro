@@ -12,7 +12,7 @@
     "package:win:dir": "npm run build && npm run prepare:runtime && electron-builder --win dir"
   },
   "devDependencies": {
-    "@types/node": "^22.13.14",
+    "@types/node": "^26.6.6",
     "electron": "36.9.5",
     "electron-builder": "^26.18.0",
     "typescript": "~5.7.2"
