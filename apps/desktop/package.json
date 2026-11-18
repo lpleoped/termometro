@@ -8,7 +8,7 @@
     "start": "npm run build && electron .",
     "prepare:runtime": "npm install --omit=dev --prefix .runtime",
     "package:win": "npm run build && npm run prepare:runtime && node scripts/package.cjs",
-    "test": "npm run build && node --test tests/update-flow.test.cjs",
+    "test": "npm run build && node --test tests/update-flow.test.cjs tests/lan-network.test.cjs",
     "package:win:dir": "npm run build && npm run prepare:runtime && electron-builder --win dir"
   },
   "devDependencies": {

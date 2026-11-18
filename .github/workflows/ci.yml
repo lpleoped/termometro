@@ -40,6 +40,9 @@ jobs:
       - name: API local-flow tests
         run: npm run test:local-flow -w @termometro/api
 
+      - name: API regression tests
+        run: npm run test:regressions -w @termometro/api
+
       - name: API repositories tests
         run: npm run test:repositories -w @termometro/api
 

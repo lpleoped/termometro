@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import type { IInstanciaEvaluacion } from '../models/InstanciaEvaluacion';
 import { assertEvaluationOwner, assertTeamInstanceOwner, assertTeamOwner } from './authorization.service';
+import { collectShareableLanHosts } from './lan-hosts';
 import { evaluationRepository } from '../repositories/evaluation.repository';
 import { roundRepository } from '../repositories/round.repository';
 
@@ -91,29 +92,6 @@ export const obtenerInstanciaPorIdService = async (id: string, userId: string) =
   };
 };
 
-const VIRTUAL_INTERFACE_PATTERNS = [
-  /^vEthernet/i,        // Hyper-V
-  /^docker/i,           // Docker
-  /^br-/,               // Docker bridges
-  /^vboxnet/i,          // VirtualBox
-  /^vmnet/i,            // VMware
-  /^utun/i,             // macOS VPN tunnels
-  /^tun/i,              // VPN tunnels
-  /^tap/i,              // VPN taps
-  /^wsl/i,              // WSL
-  /^lo/i,               // Loopback (already filtered by internal flag)
-];
-
-const isVirtualOrUnreachableInterface = (name: string, address: string): boolean => {
-  // Filter by interface name patterns
-  if (VIRTUAL_INTERFACE_PATTERNS.some(pattern => pattern.test(name))) return true;
-  
-  // Filter link-local addresses (169.254.x.x)
-  if (address.startsWith('169.254.')) return true;
-  
-  return false;
-};
-
 export const obtenerEnlacesPublicosService = async (id: string, userId: string) => {
   const instancia = await roundRepository().findById(id);
   if (!instancia) throw new Error('Instancia no encontrada');
@@ -121,25 +99,10 @@ export const obtenerEnlacesPublicosService = async (id: string, userId: string) 
   else await assertEvaluationOwner(userId, String(instancia.evaluacion));
   if (!instancia.tokenPublico || instancia.estado !== 'activa') throw new Error('La ronda no está disponible');
   const port = Number(process.env.PORT) || 3000;
-  
-  interface HostInfo {
-    address: string;
-    interfaceName: string;
-  }
-  
-  const hosts: HostInfo[] = [];
-  
-  for (const [name, interfaces] of Object.entries(os.networkInterfaces())) {
-    for (const item of interfaces || []) {
-      if (item.family === 'IPv4' && !item.internal) {
-        if (!isVirtualOrUnreachableInterface(name, item.address)) {
-          hosts.push({ address: item.address, interfaceName: name });
-        }
-      }
-    }
-  }
-  
-  // Always include localhost as fallback
+
+  const hosts = collectShareableLanHosts(os.networkInterfaces());
+
+  // Siempre hay un enlace usable para quien publica desde la misma máquina.
   if (hosts.length === 0) {
     hosts.push({ address: 'localhost', interfaceName: 'loopback' });
   }
