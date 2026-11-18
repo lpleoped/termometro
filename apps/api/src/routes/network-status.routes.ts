@@ -2,32 +2,22 @@ import { Router, Request, Response } from 'express';
 import os from 'node:os';
 import { exec } from 'node:child_process';
 import http from 'node:http';
+import { classifyNetworkCategory, selectLanAddress, type NetworkProfileType } from '../services/lan-hosts';
 
 const router = Router();
 
 interface NetworkStatus {
-  profileType: 'Private' | 'Public' | 'Domain' | 'Unknown';
+  profileType: NetworkProfileType;
   lanHealthy: boolean;
   lanAddress: string | null;
   isDesktop: boolean;
 }
 
 function getLanAddress(): string | null {
-  const interfaces = os.networkInterfaces();
-  for (const [name, items] of Object.entries(interfaces)) {
-    // Skip virtual interfaces
-    if (/^(vEthernet|docker|wsl|vmnet|vboxnet|utun|tun|tap|br-)/i.test(name)) continue;
-    
-    for (const item of items || []) {
-      if (item.family === 'IPv4' && !item.internal && !item.address.startsWith('169.254.')) {
-        return item.address;
-      }
-    }
-  }
-  return null;
+  return selectLanAddress(os.networkInterfaces());
 }
 
-async function getNetworkProfile(): Promise<string> {
+async function getNetworkProfile(): Promise<NetworkProfileType> {
   if (process.platform !== 'win32') return 'Unknown';
   
   return new Promise((resolve) => {
@@ -39,11 +29,7 @@ async function getNetworkProfile(): Promise<string> {
           resolve('Unknown');
           return;
         }
-        const category = stdout.trim();
-        if (category === 'Public' || category === '0') resolve('Public');
-        else if (category === 'Private' || category === '1') resolve('Private');
-        else if (category === 'Domain' || category === '2') resolve('Domain');
-        else resolve('Unknown');
+        resolve(classifyNetworkCategory(stdout));
       }
     );
   });
@@ -81,7 +67,7 @@ router.get('/network-status', async (_req: Request, res: Response) => {
     ]);
     
     const status: NetworkStatus = {
-      profileType: profileType as NetworkStatus['profileType'],
+      profileType,
       lanHealthy,
       lanAddress: getLanAddress(),
       isDesktop: true,

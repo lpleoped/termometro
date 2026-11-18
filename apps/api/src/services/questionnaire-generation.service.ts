@@ -41,11 +41,12 @@ export function validateGeneratedQuestionnaire(value: unknown): GeneratedQuestio
     totalWeight += section.ponderacion;
     totalIndicators += section.indicadores.length;
     const indicadores = section.indicadores.map((item: any) => {
-      if (!item || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) || typeof item.texto !== 'string' || !item.texto.trim() || item.texto.length > 1000 || !['cuantitativo', 'cualitativo'].includes(item.tipo) || !['positiva', 'negativa'].includes(item.direccion)) {
+      const id = typeof item?.id === 'string' ? item.id.trim() : '';
+      if (!item || !id || ids.has(id) || typeof item.texto !== 'string' || !item.texto.trim() || item.texto.length > 1000 || !['cuantitativo', 'cualitativo'].includes(item.tipo) || !['positiva', 'negativa'].includes(item.direccion)) {
         throw new AIRequestError('AI_QUESTIONNAIRE_FORMAT', 'La IA devolvió una pregunta inválida.', 502);
       }
-      ids.add(item.id);
-      return { id: item.id.trim(), texto: item.texto.trim(), tipo: item.tipo, direccion: item.direccion };
+      ids.add(id);
+      return { id, texto: item.texto.trim(), tipo: item.tipo, direccion: item.direccion };
     });
     return { titulo: section.titulo.trim(), ponderacion: section.ponderacion, indicadores };
   });

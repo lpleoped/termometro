@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import os from 'node:os';
+import { classifyNetworkCategory, selectLanAddress, type NetworkProfileType } from './lan-network';
 
 const PORT = 3210;
 let apiProcess: ChildProcess | undefined;
@@ -17,12 +18,12 @@ if (!hasInstanceLock) app.quit();
 app.on('second-instance', () => { mainWindow?.restore(); mainWindow?.focus(); });
 
 interface NetworkStatus {
-  profileType: 'Private' | 'Public' | 'Domain' | 'Unknown';
+  profileType: NetworkProfileType;
   lanHealthy: boolean;
   lanAddress: string | null;
 }
 
-async function getNetworkProfile(): Promise<string> {
+async function getNetworkProfile(): Promise<NetworkProfileType> {
   if (process.platform !== 'win32') return 'Unknown';
   
   return new Promise((resolve) => {
@@ -34,30 +35,14 @@ async function getNetworkProfile(): Promise<string> {
           resolve('Unknown');
           return;
         }
-        const category = stdout.trim();
-        // NetworkCategory values: 0=Public, 1=Private, 2=Domain
-        if (category === 'Public' || category === '0') resolve('Public');
-        else if (category === 'Private' || category === '1') resolve('Private');
-        else if (category === 'Domain' || category === '2') resolve('Domain');
-        else resolve('Unknown');
+        resolve(classifyNetworkCategory(stdout));
       }
     );
   });
 }
 
 function getLanAddress(): string | null {
-  const interfaces = os.networkInterfaces();
-  for (const [name, items] of Object.entries(interfaces)) {
-    // Skip virtual interfaces
-    if (/^(vEthernet|docker|wsl|vmnet|vboxnet|utun|tun|tap)/i.test(name)) continue;
-    
-    for (const item of items || []) {
-      if (item.family === 'IPv4' && !item.internal && !item.address.startsWith('169.254.')) {
-        return item.address;
-      }
-    }
-  }
-  return null;
+  return selectLanAddress(os.networkInterfaces());
 }
 
 async function checkLanHealth(): Promise<boolean> {
