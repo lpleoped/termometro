@@ -293,9 +293,18 @@
   white-space: nowrap;
 }
 
-.pasos-recorrido li span {
+.pasos-recorrido a {
   display: inline-block;
   padding: 0.35rem 0.15rem;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.pasos-recorrido a:hover,
+.pasos-recorrido a:focus-visible {
+  color: #0b5ed7;
+  background: #f1f5f9;
 }
 
 .pasos-recorrido .paso-actual {
@@ -303,7 +312,7 @@
   font-weight: 600;
 }
 
-.pasos-recorrido .paso-actual span {
+.pasos-recorrido .paso-actual a {
   box-shadow: inset 0 -2px 0 #0b5ed7;
 }
 
@@ -1804,6 +1813,45 @@ section, .main-bg {
 .alta-evaluacion-page {
   max-width: 1180px;
   padding-bottom: 4rem !important;
+}
+
+.alta-evaluacion-manual {
+  max-width: 720px;
+}
+
+.alta-evaluacion-manual .alta-evaluacion-header {
+  display: block;
+  max-width: none;
+}
+
+.alta-inteligencia {
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0.85rem 0 0;
+}
+
+.alta-inteligencia a,
+.alta-inteligencia button {
+  background: none;
+  border: 0;
+  color: var(--primary-color);
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.alta-inteligencia button {
+  cursor: pointer;
+}
+
+.alta-inteligencia a:hover,
+.alta-inteligencia a:focus-visible,
+.alta-inteligencia button:hover,
+.alta-inteligencia button:focus-visible {
+  color: var(--primary-dark);
 }
 
 .alta-evaluacion-header {

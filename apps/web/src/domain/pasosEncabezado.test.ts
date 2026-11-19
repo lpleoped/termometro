@@ -1,5 +1,5 @@
 import { siguientePaso, type EstadoFacilitador, type PasoFacilitador } from '@termometro/shared';
-import { pasosVisibles, type IdPasoVisible } from './pasosEncabezado.ts';
+import { destinoAlVolver, destinoDePaso, pasosVisibles, type IdPasoVisible } from './pasosEncabezado.ts';
 
 function igual(condicion: boolean, mensaje: string) {
   if (!condicion) throw new Error(mensaje);
@@ -53,3 +53,32 @@ casos.forEach(([nombre, parcial, esperado]) => {
   igual(visibles.slice(0, indice).every((item) => item.estado === 'hecho'), `${nombre}: un paso anterior no quedó como hecho`);
   console.log(`✓ ${nombre}`);
 });
+
+const equipo = '6afe6217508f0c99a1be85a4';
+igual(destinoDePaso('equipo', equipo) === `/backoffice/equipos?equipo=${equipo}`, 'equipo');
+igual(destinoDePaso('inteligencia', equipo) === `/backoffice/configuracion/ia?equipoId=${equipo}`, 'inteligencia');
+igual(destinoDePaso('contexto', equipo) === `/backoffice/equipos?equipo=${equipo}&paso=contexto`, 'contexto');
+igual(destinoDePaso('cuestionario', equipo) === `/backoffice/alta-evaluacion?equipoId=${equipo}`, 'cuestionario');
+igual(destinoDePaso('compartir', equipo) === `/backoffice/publicar-evaluacion?equipoId=${equipo}`, 'compartir');
+igual(destinoDePaso('cuestionario', '  ') === '/backoffice/alta-evaluacion', 'sin equipo el cuestionario no lleva query');
+igual(
+  destinoAlVolver({ autenticado: false, from: `/backoffice/alta-evaluacion?equipoId=${equipo}`, paso: 'armar-a-mano', equipoId: equipo }) === '/',
+  'sin sesión vuelve al inicio',
+);
+igual(
+  destinoAlVolver({ autenticado: true, from: `/backoffice/alta-evaluacion?equipoId=${equipo}`, paso: 'armar-a-mano', equipoId: equipo }) === `/backoffice/alta-evaluacion?equipoId=${equipo}`,
+  'vuelve a la pantalla de origen',
+);
+igual(
+  destinoAlVolver({ autenticado: true, from: '/ayuda/que-es', paso: 'armar-a-mano', equipoId: equipo }) === `/backoffice/alta-evaluacion?equipoId=${equipo}`,
+  'no vuelve a otra página de ayuda',
+);
+igual(
+  destinoAlVolver({ autenticado: true, from: 'https://evil.test/alta', paso: 'armar-a-mano', equipoId: equipo }) === `/backoffice/alta-evaluacion?equipoId=${equipo}`,
+  'un origen externo no sale de la app',
+);
+igual(
+  destinoAlVolver({ autenticado: true, from: undefined, paso: 'ver-la-ronda', equipoId: equipo }) === '/backoffice/home',
+  'sin paso de primer uso vuelve al panel',
+);
+console.log('✓ destinos del encabezado y de la ayuda');

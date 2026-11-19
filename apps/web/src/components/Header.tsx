@@ -1,44 +1,21 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useState, useEffect } from 'react'
-import type { AIProviderResponse, AISettings, PasoFacilitador, TeamContextItem } from '@termometro/shared'
 import logo from '../assets/termometro-logo.png'
-import { marcasDeCuestionario } from '../domain/cuestionariosEquipo'
-import { pasoDelEquipo } from '../domain/pasoFacilitador'
-import { pasosVisibles, type PasoVisible } from '../domain/pasosEncabezado'
+import { destinoDePaso, pasosVisibles, type PasoVisible } from '../domain/pasosEncabezado'
 import './InfoAyuda.css'
-import api from '../services/api'
-import { getEquipos } from '../services/equipoService'
-import { getEvaluaciones } from '../services/evaluacionService'
-import { getIAProviders, getIASettings } from '../services/iaSettingsService'
-import { getTeamContext } from '../services/teamContextService'
+import { useRecorridoEncabezado } from './useRecorridoEncabezado'
 
 const ULTIMA_RONDA = 'termometro-ultima-ronda'
-const EQUIPO_ACTIVO = 'termometro-equipo-activo'
 
-interface EquipoMin { _id?: string; id?: string }
-
-function idDe(doc: EquipoMin | null | undefined): string {
-  return doc ? String(doc._id || doc.id || '') : ''
-}
-
-function equipoEnCurso(ids: string[], search: string): string {
-  const params = new URLSearchParams(search)
-  const enUrl = params.get('equipo') || params.get('equipoId') || ''
-  if (enUrl && ids.includes(enUrl)) return enUrl
-  let guardado = ''
-  try { guardado = localStorage.getItem(EQUIPO_ACTIVO) || '' } catch { guardado = '' }
-  if (guardado && ids.includes(guardado)) return guardado
-  return ids[0] || ''
-}
-
-async function hayRonda(equipoId: string): Promise<boolean> {
-  try {
-    const res = await api.get('/instancias', { params: { equipoId } })
-    return Array.isArray(res.data) && res.data.length > 0
-  } catch {
-    return false
-  }
+function SignoAyuda() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="8.25" />
+      <path d="M10 9.15v5.1" />
+      <circle className="info-ayuda-punto" cx="10" cy="6.15" r="0.85" />
+    </svg>
+  )
 }
 
 export default function Header() {
@@ -47,9 +24,7 @@ export default function Header() {
   const location = useLocation()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [listo, setListo] = useState(false)
-  const [yaMide, setYaMide] = useState(false)
-  const [paso, setPaso] = useState<PasoFacilitador>('crear-equipo')
+  const { listo, yaMide, paso, equipoId } = useRecorridoEncabezado()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -58,54 +33,6 @@ export default function Header() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setListo(true)
-      setYaMide(false)
-      setPaso('crear-equipo')
-      return
-    }
-    let activo = true
-    setListo(false)
-    Promise.all([
-      getEquipos(),
-      getEvaluaciones().catch(() => []),
-      getIASettings().catch(() => null),
-      getIAProviders().catch(() => [] as AIProviderResponse[]),
-    ]).then(async ([equiposRaw, evaluaciones, settings, providers]) => {
-      const lista = Array.isArray(equiposRaw) ? equiposRaw as EquipoMin[] : []
-      const ids = lista.map(idDe).filter(Boolean)
-      const marcas = await Promise.all(ids.map(async (equipoId) => {
-        const [ronda, contexto] = await Promise.all([
-          hayRonda(equipoId),
-          getTeamContext(equipoId).catch(() => [] as TeamContextItem[]),
-        ])
-        return { equipoId, ronda, vigente: contexto.some((item) => item.status !== 'obsolete') }
-      }))
-      if (!activo) return
-      const midio = marcas.some((marca) => marca.ronda)
-      const foco = equipoEnCurso(ids, location.search)
-      const elegido = marcas.find((marca) => marca.equipoId === foco)
-      const ajustes = settings && typeof settings === 'object' ? settings as AISettings : null
-      const cuestionarios = marcasDeCuestionario(evaluaciones, foco)
-      setYaMide(midio)
-      setPaso(pasoDelEquipo({
-        tieneEquipo: ids.length > 0,
-        settings: ajustes,
-        providers: Array.isArray(providers) ? providers : [],
-        tieneCuestionario: cuestionarios.tieneCuestionario,
-        hayAlgunCuestionario: cuestionarios.hayAlgunCuestionario,
-        tieneContexto: Boolean(elegido?.vigente),
-        rondaCompartida: Boolean(elegido?.ronda),
-      }))
-    }).catch(() => {
-      if (!activo) return
-      setYaMide(false)
-      setPaso('crear-equipo')
-    }).finally(() => { if (activo) setListo(true) })
-    return () => { activo = false }
-  }, [isAuthenticated, location.pathname, location.search])
 
   const handleLogout = () => {
     logout()
@@ -137,8 +64,8 @@ export default function Header() {
       <div className={pasos ? 'container-fluid px-3' : 'container'}>
         <Link
           className="navbar-brand d-flex align-items-center text-decoration-none"
-          to={isAuthenticated ? '/inicio' : '/'}
-          aria-label={isAuthenticated ? 'Ir al inicio' : 'Termómetro'}
+          to={isAuthenticated ? '/backoffice/home' : '/'}
+          aria-label={isAuthenticated ? 'Ir al panel' : 'Termómetro'}
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <img
@@ -168,7 +95,9 @@ export default function Header() {
             <ol className="pasos-recorrido" aria-label="Pasos">
               {pasos.map((item) => (
                 <li key={item.id} className={`paso-${item.estado}`} aria-current={item.estado === 'actual' ? 'step' : undefined}>
-                  <span>{item.nombre}</span>
+                  <Link to={destinoDePaso(item.id, equipoId)} onClick={() => setIsMobileMenuOpen(false)}>
+                    {item.nombre}
+                  </Link>
                 </li>
               ))}
             </ol>
@@ -192,22 +121,23 @@ export default function Header() {
             </ul>
           )}
 
-          <Link
-            className={`ayuda-enlace ${location.pathname.startsWith('/ayuda') ? 'is-activa' : ''} ${pasos ? 'pasos-cuenta' : 'ms-2'}`}
-            to="/ayuda"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            Ayuda
-          </Link>
-
-          {isAuthenticated && (
-            <button
-              className={`btn btn-outline-secondary btn-sm ${pasos ? 'pasos-cuenta' : 'ms-2'}`}
-              onClick={handleLogout}
+          <div className={`cuenta-grupo ${pasos ? 'pasos-cuenta' : ''}`}>
+            <Link
+              className={`cuenta-ayuda ${location.pathname.startsWith('/ayuda') ? 'is-activa' : ''}`}
+              to="/ayuda"
+              state={{ from: `${location.pathname}${location.search}` }}
+              aria-label="Ayuda"
+              aria-current={location.pathname.startsWith('/ayuda') ? 'page' : undefined}
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              Cerrar sesión
-            </button>
-          )}
+              <SignoAyuda />
+            </Link>
+            {isAuthenticated && (
+              <button type="button" className="cuenta-salir" onClick={handleLogout}>
+                Cerrar sesión
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </nav>

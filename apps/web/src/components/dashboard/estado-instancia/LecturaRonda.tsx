@@ -123,7 +123,10 @@ export default function LecturaRonda({ instanciaId, equipoId, onAnalisis }: Prop
       )}
       {error && (
         <div className="alert alert-danger mt-3 mb-0" role="alert">
-          <p className="mb-3">{error}</p>
+          <p className="mb-2 fw-semibold">Validación de la lectura</p>
+          {error.split('\n\n').map((parrafo) => (
+            <p className="mb-3" key={parrafo}>{parrafo}</p>
+          ))}
           <button className="btn btn-outline-danger" type="button" disabled={loading} onClick={() => void pedir()}>
             Reintentar
           </button>

@@ -300,6 +300,13 @@
     margin-left: 0;
   }
 
+  .cuenta-grupo {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+    margin-top: 0.35rem;
+  }
+
   .btn {
     max-width: 100%;
     white-space: normal;
@@ -495,6 +502,24 @@
   scroll-margin-top: 96px;
 }
 
+.alta-decision {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.alta-decision-interior {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.alta-decision p {
+  margin: 0;
+  flex: 1 1 12rem;
+}
+
 .alta-guardar-fijo {
   position: fixed;
   left: 0;
@@ -504,12 +529,19 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  border-radius: 0;
-  min-height: 52px;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+}
+
+.alta-guardar-fijo .alta-decision-interior {
+  width: min(720px, 100%);
+  margin-inline: auto;
 }
 
 .alta-propuesta:has(.alta-guardar-fijo) {
-  padding-bottom: 5rem;
+  padding-bottom: 5.5rem;
 }
 
 .backoffice-layout:has(.alta-guardar-fijo) .backoffice-main {

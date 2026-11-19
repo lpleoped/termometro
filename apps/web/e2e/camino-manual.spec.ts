@@ -112,7 +112,8 @@ test('camino a mano: equipo, cuestionario que suma 100, ronda, tres respuestas e
     // En el primer uso el encabezado muestra los pasos y no ofrece Evaluaciones como par.
     await page.goto(`${origen}/backoffice/consulta-evaluacion`);
     await page.getByRole('button', { name: 'Armar el cuestionario' }).click();
-    await expect(page.getByText('La inteligencia está apagada. Vas a escribir las preguntas vos.')).toBeVisible();
+    await expect(page.getByText('Podés escribir las preguntas acá.')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'conectá la inteligencia' })).toBeVisible();
     await expect(page.getByText('Las secciones ya suman 100.')).toBeVisible();
 
     await page.getByLabel('Nombre del cuestionario').fill('Pulso de claridad');

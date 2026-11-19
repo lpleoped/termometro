@@ -34,6 +34,49 @@ export function pasoVisible(paso: PasoFacilitador): IdPasoVisible | null {
   return null;
 }
 
+/** Pantalla de cada paso del primer uso. Sin equipo, el destino no lleva query. */
+export function destinoDePaso(id: IdPasoVisible, equipoId: string): string {
+  const equipo = equipoId.trim();
+  if (id === 'equipo') {
+    return equipo ? `/backoffice/equipos?equipo=${encodeURIComponent(equipo)}` : '/backoffice/equipos';
+  }
+  if (id === 'inteligencia') {
+    return equipo ? `/backoffice/configuracion/ia?equipoId=${encodeURIComponent(equipo)}` : '/backoffice/configuracion/ia';
+  }
+  if (id === 'contexto') {
+    return equipo
+      ? `/backoffice/equipos?equipo=${encodeURIComponent(equipo)}&paso=contexto`
+      : '/backoffice/equipos?paso=contexto';
+  }
+  if (id === 'cuestionario') {
+    return equipo ? `/backoffice/alta-evaluacion?equipoId=${encodeURIComponent(equipo)}` : '/backoffice/alta-evaluacion';
+  }
+  return equipo ? `/backoffice/publicar-evaluacion?equipoId=${encodeURIComponent(equipo)}` : '/backoffice/publicar-evaluacion';
+}
+
+function retornoInterno(from: unknown): from is string {
+  return typeof from === 'string'
+    && from.startsWith('/')
+    && !from.startsWith('//')
+    && !from.startsWith('/ayuda')
+    && !from.includes('://')
+    && !from.includes('\\');
+}
+
+/** A dónde vuelve la ayuda: la pantalla de origen, el paso actual, o el panel. */
+export function destinoAlVolver(opciones: {
+  autenticado: boolean;
+  from: unknown;
+  paso: PasoFacilitador | null;
+  equipoId: string;
+}): string {
+  if (!opciones.autenticado) return '/';
+  if (retornoInterno(opciones.from)) return opciones.from;
+  const id = opciones.paso ? pasoVisible(opciones.paso) : null;
+  if (id) return destinoDePaso(id, opciones.equipoId);
+  return '/backoffice/home';
+}
+
 /** Los cinco pasos, con uno marcado. `ver-la-ronda` ya no es primer uso. */
 export function pasosVisibles(paso: PasoFacilitador): PasoVisible[] | null {
   const actual = pasoVisible(paso);

@@ -291,12 +291,13 @@ const AltaEvaluacion = () => {
     </div>
   </div></LayoutBackoffice>;
 
+  const destinoInteligencia = equipoId ? `/backoffice/configuracion/ia?equipoId=${equipoId}` : '/backoffice/configuracion/ia';
+
   return (
     <LayoutBackoffice>
-      <div className="container py-4 alta-evaluacion-page">
+      <div className="container py-4 alta-evaluacion-page alta-evaluacion-manual">
         <div className="alta-evaluacion-header">
           <div>
-            <span className="alta-eyebrow">A mano</span>
             <div className="d-flex align-items-center gap-2 mb-2">
               <h1 className="fw-bold mb-0">Armá el cuestionario</h1>
               <InfoAyuda tema="cuestionarios" />
@@ -304,14 +305,21 @@ const AltaEvaluacion = () => {
             <p className="text-muted mb-0">
               Las secciones ya suman 100. Ajustá el peso si hace falta.
             </p>
+            <p className="alta-inteligencia">
+              {iaActiva ? (
+                <button type="button" onClick={() => setModoManual(false)}>
+                  Volver a generar con inteligencia
+                </button>
+              ) : (
+                <>
+                  Podés escribir las preguntas acá. Si preferís que las proponga,{' '}
+                  <Link to={destinoInteligencia}>conectá la inteligencia</Link>.
+                </>
+              )}
+            </p>
           </div>
-          <div className="alta-progress-note"><span className="alta-progress-dot" /> Guardado manual</div>
         </div>
-        {iaActiva && <button type="button" className="btn btn-outline-secondary mb-3" onClick={() => setModoManual(false)}>Volver a generar con inteligencia</button>}
-        <p className="text-muted">{iaActiva ? 'Sin inteligencia vas a escribir las preguntas vos.' : 'La inteligencia está apagada. Vas a escribir las preguntas vos.'}</p>
-        {!iaActiva && <p><Link className="btn btn-sm btn-outline-secondary" to={equipoId ? `/backoffice/configuracion/ia?equipoId=${equipoId}` : '/backoffice/configuracion/ia'}>Conectar la inteligencia</Link></p>}
-        <div className="alta-evaluacion-grid">
-          <div className="alta-builder-column">
+        <div className="alta-builder-column">
             <form className="alta-builder" onSubmit={handleGuardar}>
               {errorGuardado && (
                 <div className="alert alert-danger" role="alert">
@@ -458,7 +466,6 @@ const AltaEvaluacion = () => {
                 </button>
               </div>
             </form>
-          </div>
         </div>
       </div>
     </LayoutBackoffice>

@@ -74,16 +74,21 @@ export default function Accionables() {
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const [guardado, setGuardado] = useState(false);
+  const [omitida, setOmitida] = useState('');
+  const [confirmarOmitir, setConfirmarOmitir] = useState<number | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [intento, setIntento] = useState(0);
   const descripcion = useRef<HTMLTextAreaElement>(null);
   const altaRef = useRef<HTMLElement | null>(null);
   const avisoGuardado = useRef<HTMLParagraphElement>(null);
+  const avisoOmitida = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     let cancelado = false;
     setCargando(true);
     setError('');
+    setConfirmarOmitir(null);
+    setOmitida('');
     getEquipos().then(async (listaCruda) => {
       const lista = (Array.isArray(listaCruda) ? listaCruda : []) as Equipo[];
       if (cancelado) return;
@@ -146,6 +151,7 @@ export default function Accionables() {
     setBorrador(siguiente);
     setGuardado(false);
     setAviso('');
+    setConfirmarOmitir(null);
     setTimeout(() => descripcion.current?.focus({ preventScroll: true }), 0);
   };
 
@@ -154,7 +160,16 @@ export default function Accionables() {
     setAltaManual(true);
     setGuardado(false);
     setAviso('');
+    setConfirmarOmitir(null);
     setTimeout(() => descripcion.current?.focus({ preventScroll: true }), 0);
+  };
+
+  const volver = () => {
+    setBorrador(null);
+    setAltaManual(false);
+    setAviso('');
+    setGuardado(false);
+    setConfirmarOmitir(null);
   };
 
   const quedarse = async (indice: number) => {
@@ -178,7 +193,7 @@ export default function Accionables() {
     });
   };
 
-  const dejarPasar = async (indice: number) => {
+  const dejarPasar = async (indice: number, titulo: string) => {
     if (!lectura || ocupado) return;
     setOcupado(true);
     setAviso('');
@@ -186,6 +201,9 @@ export default function Accionables() {
       const res = await api.post<{ propuestasOmitidas: number[] }>(`/ai/analyses/${lectura.id}/omitir`, { indice });
       setLectura({ ...lectura, propuestasOmitidas: res.data.propuestasOmitidas });
       setBorrador((prev) => (prev?.analisisId === lectura.id && prev.propuestaIndice === indice ? null : prev));
+      setConfirmarOmitir(null);
+      setOmitida(titulo);
+      setGuardado(false);
     } catch (causa) {
       setAviso(iaMessage(causa));
     } finally {
@@ -225,6 +243,7 @@ export default function Accionables() {
       setAcciones((prev) => [res.data, ...prev]);
       setBorrador(null);
       setAltaManual(false);
+      setOmitida('');
       setGuardado(true);
     } catch (causa) {
       setAviso(iaMessage(causa));
@@ -262,6 +281,8 @@ export default function Accionables() {
         : '';
   const botonFijo = guardarFijo !== '' && guardarFijo === anclaAlta;
   const puedeGuardar = Boolean(borrador?.descripcion.trim() && borrador.ownerRole.trim() && borrador.successMetric.trim() && borrador.checkInQuestion.trim());
+  const puedeVolver = altaJuntoAPropuesta || Boolean(borrador?.adaptadaDe) || altaManual;
+  const mostrarAltaDistinta = !altaManual && (propuestas.length > 0 || Boolean(borrador?.adaptadaDe));
 
   useLayoutEffect(() => {
     if (!anclaAlta) {
@@ -278,11 +299,16 @@ export default function Accionables() {
     avisoGuardado.current?.scrollIntoView({ block: 'nearest' });
   }, [guardado]);
 
+  useEffect(() => {
+    if (!omitida) return;
+    avisoOmitida.current?.scrollIntoView({ block: 'nearest' });
+  }, [omitida]);
+
   const alta = (
     <form className={altaJuntoAPropuesta ? undefined : 'alta-propuesta mb-4'} data-alta-accion={altaJuntoAPropuesta ? undefined : ''} onSubmit={guardar}>
-      <h2 className="h5">{borrador?.adaptadaDe ? 'Ajustar como nueva' : borrador?.analisisId ? 'Quedarte con esta propuesta' : 'Registrar una acción'}</h2>
+      <h2 className="h5">{borrador?.adaptadaDe ? 'Ajustar como nueva' : borrador?.analisisId ? 'Revisar esta propuesta' : 'Registrar una acción'}</h2>
       {!rondaParaRegistrar && <p className="mb-3">Abrí una ronda antes de registrar una acción. <Link className="btn btn-sm btn-outline-secondary ms-2" to="/backoffice/publicar-evaluacion">Abrir la ronda</Link></p>}
-      {borrador?.analisisId && <p className="small">Podés ajustar el texto antes de guardarla. El texto original de la lectura queda asociado.</p>}
+      {borrador?.analisisId && <p className="small">Podés ajustar el texto antes de registrarla. El texto original de la lectura queda asociado.</p>}
       {borrador?.adaptadaDe && <p className="small">Se conserva el antecedente y el texto anterior, en este equipo.</p>}
       {aviso && <p className="alert alert-danger" role="alert">{aviso}</p>}
       <fieldset disabled={ocupado || !rondaParaRegistrar}>
@@ -304,9 +330,14 @@ export default function Accionables() {
             ))}
           </fieldset>
         )}
-        <button data-guardar-accion className={`btn btn-primary${botonFijo ? ' alta-guardar-fijo' : ''}`} type="submit" disabled={!puedeGuardar}>{ocupado ? 'Guardando…' : 'Guardar la acción'}</button>
-        {borrador && <button className="btn btn-outline-secondary" type="button" disabled={ocupado} onClick={abrirRegistro}>Empezar sin antecedente</button>}
       </fieldset>
+      <div className={`alta-decision${botonFijo ? ' alta-guardar-fijo' : ''}`} data-guardar-accion>
+        <div className="alta-decision-interior">
+          {altaJuntoAPropuesta && <p>Todavía no está registrada.</p>}
+          <button className="btn btn-primary" type="submit" disabled={ocupado || !rondaParaRegistrar || !puedeGuardar}>{ocupado ? 'Guardando…' : 'Registrar esta acción'}</button>
+          {puedeVolver && <button className="btn btn-outline-secondary" type="button" disabled={ocupado} onClick={volver}>Volver</button>}
+        </div>
+      </div>
     </form>
   );
 
@@ -317,7 +348,7 @@ export default function Accionables() {
           <h1 className="fw-bold mb-0">Accionables</h1>
           <InfoAyuda tema="accionables" />
         </div>
-        <p>Decidí qué se sigue en este equipo. Una acción de una ronda anterior sigue acá aunque abras otra.</p>
+        <p>Cada propuesta se registra o no se sigue; hasta registrarla no aparece arriba, en Acciones que se siguen. Una acción de una ronda anterior sigue acá aunque abras otra.</p>
         {cargando && <p role="status">Leyendo las acciones del equipo…</p>}
         {error && <div className="alert alert-danger" role="alert"><p>{error}</p><button className="btn btn-outline-danger" type="button" onClick={() => setIntento((n) => n + 1)}>Reintentar</button></div>}
         {!cargando && !error && equipos.length === 0 && <p>Primero creá un equipo. <Link className="btn btn-sm btn-primary ms-2" to="/backoffice/home">Crear equipo</Link></p>}
@@ -337,8 +368,8 @@ export default function Accionables() {
         )}
         {!cargando && !error && equipoId && (
           <>
-            {guardado && <p ref={avisoGuardado} className="text-success alta-aviso mt-4" role="status">La acción quedó guardada como propuesta. Pasala a revisión cuando esté lista.</p>}
             <h2 className="h5 mt-4">Acciones que se siguen</h2>
+            {guardado && <p ref={avisoGuardado} className="text-success alta-aviso" role="status">Quedó registrada. La ves en esta lista.</p>}
             {abiertas.length === 0 && <p>No hay acciones abiertas.</p>}
             <div className="d-grid gap-3 mb-4">
               {abiertas.map((accion) => (
@@ -346,6 +377,7 @@ export default function Accionables() {
               ))}
             </div>
             <h2 className="h5">Propuestas de la última lectura</h2>
+            {omitida && <p ref={avisoOmitida} role="status">No se registró “{omitida}”.</p>}
             {aviso && !altaJuntoAPropuesta && !mostrarRegistro && <p className="alert alert-danger" role="alert">{aviso}</p>}
             {propuestas.length === 0 && <p>No hay propuestas pendientes. Podés registrar una acción igual.</p>}
             <div className="d-grid gap-3 mb-4">
@@ -359,26 +391,31 @@ export default function Accionables() {
                         <p>{propuesta.descripcion}</p>
                         <p className="small">Responsable: {propuesta.ownerRole} · Plazo: {propuesta.horizon.replace('d', ' días')} · Métrica: {propuesta.successMetric}</p>
                         {!!propuesta.evidenceIds?.length && <p className="small">Indicadores que pretende mover: {propuesta.evidenceIds.map((id) => nombreIndicador(id, tablero)).join(' · ')}</p>}
+                        <p className="small mb-2">Todavía no está registrada.</p>
                         <div className="d-flex flex-wrap gap-2">
-                          <button className="btn btn-sm btn-primary" type="button" disabled={ocupado} onClick={() => void quedarse(numero)}>Quedarme con esta</button>
-                          <button className="btn btn-sm btn-outline-secondary" type="button" disabled={ocupado} onClick={() => void dejarPasar(numero)}>Dejarla pasar</button>
+                          {confirmarOmitir === numero ? (
+                            <>
+                              <button className="btn btn-sm btn-outline-secondary" type="button" disabled={ocupado} onClick={() => void dejarPasar(numero, propuesta.titulo)}>No se registra. Confirmar</button>
+                              <button className="btn btn-sm btn-outline-secondary" type="button" disabled={ocupado} onClick={() => setConfirmarOmitir(null)}>Volver</button>
+                            </>
+                          ) : (
+                            <>
+                              <button className="btn btn-sm btn-primary" type="button" disabled={ocupado} onClick={() => void quedarse(numero)}>Revisar para registrarla</button>
+                              <button className="btn btn-sm btn-outline-secondary" type="button" disabled={ocupado} onClick={() => setConfirmarOmitir(numero)}>No seguir esta</button>
+                            </>
+                          )}
                         </div>
                       </>
                     )}
-                    {elegida && (
-                      <>
-                        <p className="mb-3"><button className="btn btn-sm btn-outline-secondary" type="button" disabled={ocupado} onClick={() => void dejarPasar(numero)}>Dejarla pasar</button></p>
-                        {alta}
-                      </>
-                    )}
+                    {elegida && alta}
                   </article>
                 );
               })}
             </div>
-            {mostrarRegistro && alta}
-            {propuestas.length > 0 && !mostrarRegistro && !altaJuntoAPropuesta && (
-              <p className="mb-4"><button className="btn btn-outline-secondary" type="button" onClick={abrirRegistro}>Registrar una acción</button></p>
+            {mostrarAltaDistinta && (
+              <p className="mb-4"><button className="btn btn-outline-secondary" type="button" onClick={abrirRegistro}>Registrar una acción distinta</button></p>
             )}
+            {mostrarRegistro && alta}
             {cerradas.length > 0 && (
               <details className="mt-4">
                 <summary>Verificadas y rechazadas ({cerradas.length})</summary>

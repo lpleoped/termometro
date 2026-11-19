@@ -202,10 +202,10 @@ export const generateAnalysis = async (userId: string, input: {
     } catch (error) {
       if (error instanceof TonoInvalido) {
         registrarError('ia', error, { accion: 'tono' });
-        throw new AIRequestError('AI_FORMAT', error.message, 422);
+      } else {
+        registrarError('ia', error, { accion: 'tono' });
+        throw error;
       }
-      registrarError('ia', error, { accion: 'tono' });
-      throw error;
     }
   }
   fase = 'persistir';

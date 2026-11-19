@@ -14,6 +14,31 @@
   padding-top: 0.5rem;
 }
 
+.ayuda-volver-fila {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 42rem);
+  gap: 1.5rem;
+  justify-content: center;
+  padding: 1.25rem 1.25rem 0;
+}
+
+.ayuda-en-app .ayuda-volver-fila {
+  padding-top: 0.5rem;
+}
+
+.ayuda-volver {
+  grid-column: 2;
+  justify-self: start;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ayuda-volver:hover,
+.ayuda-volver:focus-visible {
+  color: var(--primary-color);
+}
+
 .ayuda-barra {
   display: flex;
   gap: 0.5rem;
@@ -38,7 +63,7 @@
   grid-template-columns: 14rem minmax(0, 42rem);
   gap: 1.5rem;
   justify-content: center;
-  padding: 1.5rem 1.25rem 3rem;
+  padding: 0.75rem 1.25rem 3rem;
 }
 
 .ayuda-indice-titulo {
@@ -140,9 +165,14 @@
 }
 
 @media (max-width: 720px) {
+  .ayuda-volver-fila,
   .ayuda-cuerpo {
     grid-template-columns: 1fr;
     padding-inline: 1rem;
+  }
+
+  .ayuda-volver {
+    grid-column: 1;
   }
 
   .ayuda-prosa {

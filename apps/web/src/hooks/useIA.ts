@@ -40,8 +40,9 @@ const useIA = () => {
       setState({ loading: false, error: null, analysis: response.data });
       return response.data;
     } catch (cause) {
+      const datos = axios.isAxiosError(cause) ? cause.response?.data : undefined;
       const message = axios.isAxiosError(cause)
-        ? [cause.response?.data?.error, cause.response?.data?.diagnostic ? `Detalle: ${cause.response.data.diagnostic}` : undefined, cause.response?.data?.code ? `Código: ${cause.response.data.code}` : undefined].filter(Boolean).join(' · ') || 'No se pudo generar el análisis. Revisá proveedor y modelo.'
+        ? [datos?.error, datos?.diagnostic].filter((item): item is string => typeof item === 'string' && item.trim().length > 0).join('\n\n') || 'No se pudo generar el análisis. Revisá proveedor y modelo.'
         : cause instanceof Error ? cause.message : 'No se pudo generar el análisis';
       setState(prev => ({ ...prev, loading: false, error: message }));
       throw cause;

@@ -1,8 +1,10 @@
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import LayoutBackoffice from '../../components/layouts/LayoutBackoffice'
+import { useRecorridoEncabezado } from '../../components/useRecorridoEncabezado'
 import { useAuth } from '../../context/AuthContext'
+import { destinoAlVolver } from '../../domain/pasosEncabezado'
 import { TEMAS } from '../../ayuda/temas'
 import './Ayuda.css'
 
@@ -19,13 +21,30 @@ function textoDe(tema: string): string | undefined {
   return clave ? archivos[clave] : undefined
 }
 
+function origenDe(state: unknown): unknown {
+  if (!state || typeof state !== 'object' || !('from' in state)) return undefined
+  return (state as { from?: unknown }).from
+}
+
 export default function Ayuda() {
   const { tema } = useParams()
+  const location = useLocation()
   const { isAuthenticated } = useAuth()
+  const recorrido = useRecorridoEncabezado()
   const texto = tema ? textoDe(tema) : undefined
-  if (tema && texto === undefined) return <Navigate to="/ayuda" replace />
+  if (tema && texto === undefined) return <Navigate to="/ayuda" state={location.state} replace />
+  const destino = destinoAlVolver({
+    autenticado: isAuthenticated,
+    from: origenDe(location.state),
+    paso: recorrido.listo ? recorrido.paso : null,
+    equipoId: recorrido.equipoId,
+  })
 
   const cuerpo = (
+    <>
+    <div className="ayuda-volver-fila">
+      <Link className="ayuda-volver" to={destino}>Volver</Link>
+    </div>
     <div className="ayuda-cuerpo">
         <nav className="ayuda-indice" aria-label="Temas de la ayuda">
           <p className="ayuda-indice-titulo">Temas</p>
@@ -72,6 +91,7 @@ export default function Ayuda() {
           )}
         </article>
     </div>
+    </>
   )
 
   if (isAuthenticated) {

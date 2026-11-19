@@ -66,11 +66,20 @@ export function parseTono(value: unknown, entrada: { preguntas: string[]; fraseI
   const tension = numero(proporcion.tension, 'tramo');
   if (Math.abs(alivio + mezcla + tension - 1) > 0.02) throw new TonoInvalido('La proporción del tono tiene que sumar 1.');
   if (!Array.isArray(tono.marcas) || tono.marcas.length > 5) throw new TonoInvalido('Las marcas del tono son como máximo cinco.');
-  const marcas = tono.marcas.map((marca: any) => {
-    if (!MARCAS_TONO.includes(marca?.etiqueta) || !DIRECCIONES.includes(marca?.direccion)) throw new TonoInvalido('Una marca quedó fuera del conjunto cerrado.');
-    return { etiqueta: marca.etiqueta as MarcaTono, intensidad: numero(marca.intensidad, 'intensidad'), direccion: marca.direccion as DireccionMarca };
-  });
-  if (new Set(marcas.map((marca) => marca.etiqueta)).size !== marcas.length) throw new TonoInvalido('Las marcas no se repiten.');
+  const marcas: Array<{ etiqueta: MarcaTono; intensidad: number; direccion: DireccionMarca }> = [];
+  for (const marca of tono.marcas) {
+    const textoEtiqueta = typeof marca?.etiqueta === 'string' ? marca.etiqueta : '';
+    const piezas = textoEtiqueta.split('|').map((pieza: string) => pieza.trim()).filter(Boolean);
+    const direccionRecibida = typeof marca?.direccion === 'string' ? normalizar(marca.direccion) : '';
+    const direccionLista = DIRECCIONES.find((item) => item === direccionRecibida);
+    const intensidad = numero(marca?.intensidad, 'intensidad');
+    for (const pieza of piezas.length ? piezas : [textoEtiqueta]) {
+      const etiquetaLista = MARCAS_TONO.find((item) => item === normalizar(pieza));
+      if (!etiquetaLista || !direccionLista) continue;
+      if (marcas.some((anterior) => anterior.etiqueta === etiquetaLista) || marcas.length >= 5) continue;
+      marcas.push({ etiqueta: etiquetaLista, intensidad, direccion: direccionLista });
+    }
+  }
   const permitidos = new Set(entrada.fraseIds);
   if (!Array.isArray(tono.frases) || tono.frases.length !== entrada.fraseIds.length) throw new TonoInvalido('Tiene que haber una marca por frase, sin el texto.');
   const vistas = new Set<string>();

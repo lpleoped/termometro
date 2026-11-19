@@ -42,6 +42,20 @@ assert.throws(
   (error: unknown) => error instanceof TonoInvalido && /enunciado/.test((error as Error).message),
 );
 
+const conTilde = parseTono({ ...valido, marcas: [{ etiqueta: 'energía', intensidad: 0.5, direccion: 'negativa' }] }, entrada);
+assert.equal(conTilde.marcas[0]?.etiqueta, 'energia');
+assert.equal(conTilde.marcas[0]?.direccion, 'negativa');
+
+const fueraDeLista = parseTono({ ...valido, marcas: [{ etiqueta: 'clima', intensidad: 0.5, direccion: 'negativa' }] }, entrada);
+assert.deepEqual(fueraDeLista.marcas, []);
+assert.equal(fueraDeLista.oracion, valido.oracion);
+
+const pegadas = parseTono({
+  ...valido,
+  marcas: [{ etiqueta: 'incertidumbre|frustracion|tension|reconocimiento', intensidad: 0.5, direccion: 'negativa' }],
+}, entrada);
+assert.deepEqual(pegadas.marcas.map((marca) => marca.etiqueta), ['incertidumbre', 'frustracion', 'tension', 'reconocimiento']);
+
 const dentroDeUnaPreguntaLarga = parseTono({
   ...valido,
   temas: [{ tema: 'Clima del equipo', interpretacion: 'Un recorte corto, no la pregunta.', evidenciaIds: ['f2'] }],

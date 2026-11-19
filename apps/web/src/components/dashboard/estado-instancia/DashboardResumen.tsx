@@ -68,7 +68,12 @@ const DashboardResumen = ({ valor, participacion, lectura }: Props) => {
 
       {(participacionBaja || participacionExcesiva) && (
         <div className="resumen-alert px-4 py-3" role="status">
-          {participacionBaja ? 'La participación todavía es baja.' : 'Hay más respuestas que personas esperadas.'}
+          <p className="mb-1 fw-semibold">Validación de participación</p>
+          <p className="mb-0">
+            {participacionBaja
+              ? `Respondieron ${recibida} de ${esperada}, por debajo de la mitad. El índice sale de esas respuestas.`
+              : `La ronda espera ${esperada === 1 ? '1 persona' : `${esperada} personas`} y guardó ${recibida} respuestas. El índice las usa todas, también las que pasan de esa cantidad. Otro envío desde el mismo link se guarda como una respuesta nueva.`}
+          </p>
         </div>
       )}
     </section>
