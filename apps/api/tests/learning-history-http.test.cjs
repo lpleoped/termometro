@@ -18,9 +18,14 @@ const completion = require('../dist/services/ai-completion');
 const settings = require('../dist/services/ai-settings.service');
 const providerService = require('../dist/services/ai-provider.service');
 
-test('HTTP: guardar → aplicar → seguir → contrastar y ajustar con IA e histórico', { timeout: process.env.LEARNING_BROWSER_CHECK ? 900000 : 60000 }, async () => {
+test('HTTP: guardar → aplicar → seguir → contrastar y ajustar con IA e histórico', { timeout: process.env.LEARNING_BROWSER_CHECK ? 900000 : 60000 }, async (t) => {
   const dbName = `termometro_learning_test_${crypto.randomBytes(8).toString('hex')}`;
-  await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017', { dbName, serverSelectionTimeoutMS: 8000 });
+  try {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017', { dbName, serverSelectionTimeoutMS: 8000 });
+  } catch (error) {
+    t.skip('Mongo no disponible: ' + (error instanceof Error ? error.message : error));
+    return;
+  }
   const owner = new mongoose.Types.ObjectId().toString();
   const stranger = new mongoose.Types.ObjectId().toString();
   const app = express(); app.use(require('cors')()); app.use(express.json());
@@ -133,8 +138,10 @@ test('HTTP: guardar → aplicar → seguir → contrastar y ajustar con IA e his
   } finally {
     [settings.resolveAIProvider, providerService.getProviderCredentials, completion.requestCompletion] = originals;
     server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
-    assert.match(dbName, /^termometro_learning_test_[a-f0-9]{16}$/);
-    assert.equal(mongoose.connection.name, dbName);
-    await mongoose.connection.dropDatabase(); await mongoose.disconnect();
+    if (mongoose.connection.readyState === 1) {
+      assert.match(dbName, /^termometro_learning_test_[a-f0-9]{16}$/);
+      assert.equal(mongoose.connection.name, dbName);
+      await mongoose.connection.dropDatabase(); await mongoose.disconnect();
+    }
   }
 });
