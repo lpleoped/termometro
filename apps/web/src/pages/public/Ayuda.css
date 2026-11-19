@@ -1,0 +1,151 @@
+.ayuda {
+  min-height: 100vh;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+}
+
+.ayuda-en-app {
+  min-height: 0;
+  background: transparent;
+}
+
+.ayuda-en-app .ayuda-cuerpo {
+  padding-top: 0.5rem;
+}
+
+.ayuda-barra {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ayuda-barra a {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ayuda-barra a:hover {
+  color: var(--primary-color);
+}
+
+.ayuda-cuerpo {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 42rem);
+  gap: 1.5rem;
+  justify-content: center;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.ayuda-indice-titulo {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ayuda-indice ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ayuda-indice a {
+  display: block;
+  padding: 0.35rem 0;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.ayuda-indice a[aria-current='page'] {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ayuda-prosa {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem 1.75rem 2rem;
+}
+
+.ayuda-prosa h1 {
+  font-size: var(--font-size-3xl);
+  margin: 0 0 1rem;
+}
+
+.ayuda-prosa h2 {
+  font-size: var(--font-size-xl);
+  margin: 1.75rem 0 0.75rem;
+}
+
+.ayuda-prosa p,
+.ayuda-prosa li {
+  line-height: 1.6;
+}
+
+.ayuda-prosa a {
+  color: var(--primary-color);
+}
+
+.ayuda-prosa table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0 1.25rem;
+}
+
+.ayuda-prosa th,
+.ayuda-prosa td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ayuda-prosa th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.ayuda-prosa code {
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius);
+  padding: 0.1rem 0.35rem;
+}
+
+.ayuda-mapa {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+
+.ayuda-mapa li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.ayuda-mapa a {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ayuda-mapa span {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+  .ayuda-cuerpo {
+    grid-template-columns: 1fr;
+    padding-inline: 1rem;
+  }
+
+  .ayuda-prosa {
+    padding: 1.25rem 1rem 1.75rem;
+  }
+}

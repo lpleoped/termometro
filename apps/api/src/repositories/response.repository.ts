@@ -1,4 +1,5 @@
 import { Respuesta } from '../models/Respuesta';
+import { guardValue } from '../domain/persisted-schemas';
 import { isLocalStorage, listLocal, localId, localNow, saveLocal } from '../storage/local-store';
 import { resolveMongooseResult, plainRecord } from './mongoose-result';
 
@@ -24,9 +25,9 @@ class JsonResponseRepository implements ResponseRepository {
   async listByRound(roundId: string) { return listLocal<ResponseRecord>('respuestas').filter(item => item.instanciaEvaluacion === roundId); }
 }
 class MongoResponseRepository implements ResponseRepository {
-  async insert(record: NewResponseRecord) { return plainRecord<ResponseRecord>(await new Respuesta(record).save()); }
-  async findByIdempotency(roundId: string, key: string) { return resolveMongooseResult<ResponseRecord | null>(Respuesta.findOne({ instanciaEvaluacion: roundId, idempotencyKey: key })); }
-  async listByRound(roundId: string) { return resolveMongooseResult<ResponseRecord[]>(Respuesta.find({ instanciaEvaluacion: roundId })); }
+  async insert(record: NewResponseRecord) { return guardValue('respuestas', plainRecord<ResponseRecord>(await new Respuesta(record).save())); }
+  async findByIdempotency(roundId: string, key: string) { return guardValue('respuestas', await resolveMongooseResult<ResponseRecord | null>(Respuesta.findOne({ instanciaEvaluacion: roundId, idempotencyKey: key }))); }
+  async listByRound(roundId: string) { return guardValue('respuestas', await resolveMongooseResult<ResponseRecord[]>(Respuesta.find({ instanciaEvaluacion: roundId }))); }
 }
 
 export const responseRepository = (): ResponseRepository => isLocalStorage() ? new JsonResponseRepository() : new MongoResponseRepository();

@@ -14,12 +14,14 @@ test('histórico y dashboard coinciden con polaridad mixta y comentarios; respet
     { titulo: 'Negativa', ponderacion: 50, indicadores: [{ id: 'n', tipo: 'cuantitativo', direccion: 'negativa' }] },
     { titulo: 'Abierta', ponderacion: 0, indicadores: [{ id: 'a', tipo: 'cualitativo', texto: 'Comentario' }] },
   ] };
-  const ronda = { _id: 'ronda', activadoEn: new Date(), cantidadEsperada: 1, modoRespuesta: 'identificada', minimoAnonimato: 2, equipo: { nombre: 'Equipo' }, evaluacion };
+  const equipo = { _id: 'equipo', nombre: 'Equipo', creadoPor: 'lider', miembros: [], activo: true };
+  const ronda = { _id: 'ronda', activadoEn: new Date(), cantidadEsperada: 1, modoRespuesta: 'identificada', minimoAnonimato: 2, equipo: 'equipo', evaluacion: 'evaluacion' };
+  process.env.STORAGE_DRIVER = 'mongo';
   try {
     InstanciaEvaluacion.find = () => ({ sort: async () => [ronda] });
     InstanciaEvaluacion.findById = () => ({ populate: () => ({ populate: async () => ronda }) });
     Evaluacion.findById = async () => evaluacion;
-    Equipo.findById = async () => ronda.equipo;
+    Equipo.findById = async () => equipo;
     Respuesta.find = async () => [{ respuestas: [{ indicadorId: 'p', valor: 5 }, { indicadorId: 'n', valor: 5 }, { indicadorId: 'a', texto: 'Texto sin puntaje', valor: 5 }] }];
     const actual = await getEstadoActualDashboard('ronda');
     const historia = await getHistoricoPorEquipoYEvaluacion('equipo', 'evaluacion');

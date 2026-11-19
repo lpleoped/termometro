@@ -1,8 +1,8 @@
 {
-  "name": "termometro-de-equipo",
+  "name": "termometro",
   "private": true,
   "version": "0.0.1",
-  "description": "Termómetro de Equipo — diagnóstico de clima de equipos",
+  "description": "Termómetro de Equipo — diagnóstico de equipos",
   "license": "Apache-2.0",
   "workspaces": [
     "apps/*",
@@ -12,17 +12,18 @@
     "postinstall": "npm run build -w @termometro/shared",
     "setup:dev": "node scripts/setup-dev.mjs",
     "dev": "npm run setup:dev && concurrently --kill-others-on-fail --names API,WEB --prefix name \"npm run dev:api\" \"npm run dev:web\"",
-    "dev:api": "npm run dev -w @termometro/api",
+    "dev:api": "node scripts/run-api.mjs web dev",
     "dev:web": "npm run dev -w @termometro/web",
     "seed": "npm run seed -w @termometro/api",
     "build": "npm run build -w @termometro/shared && npm run build -w @termometro/api && npm run build -w @termometro/web",
-    "start:api": "npm run start -w @termometro/api",
+    "start:api": "node scripts/run-api.mjs web start",
     "preview:web": "npm run preview -w @termometro/web",
     "start": "concurrently --kill-others-on-fail --names API,WEB --prefix name \"npm run start:api\" \"npm run preview:web\"",
     "build:desktop": "npm run build && npm run build -w @termometro/desktop",
     "desktop": "npm run build:desktop && npm run start -w @termometro/desktop",
-    "package:win": "npm run build && npm run package:win -w @termometro/desktop"
-    ,"local": "npm run setup:dev && npm run build && npm run start:api"
+    "package:win": "npm run build && npm run package:win -w @termometro/desktop",
+    "test:browser": "npm run build -w @termometro/shared && npm run build -w @termometro/api && npm run build -w @termometro/web && npm run test:e2e -w @termometro/web"
+    ,"local": "npm run setup:dev && npm run build && node scripts/run-api.mjs local start"
   },
   "engines": {
     "node": ">=20"

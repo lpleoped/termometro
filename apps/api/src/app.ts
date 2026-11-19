@@ -21,11 +21,30 @@ import installationRoutes from './routes/installation.routes';
 import networkStatusRoutes from './routes/network-status.routes';
 import { localManagement } from './middleware/local-management.middleware';
 import { lanSecurityMiddleware } from './middleware/lan-security.middleware';
+import { registrarError } from './observability/errores';
+import { log, registrarAcceso } from './observability/logger';
 
 dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
+app.use((req, res, next) => {
+  const inicio = Date.now();
+  res.on('finish', () => {
+    registrarAcceso(req.method, req.originalUrl || req.url, res.statusCode, Date.now() - inicio);
+  });
+  next();
+});
+
+process.on('uncaughtException', (error) => {
+  registrarError('sistema', error, { accion: 'uncaughtException' });
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  registrarError('sistema', reason, { accion: 'unhandledRejection' });
+  process.exit(1);
+});
 
 // Algunas rondas históricas contienen texto UTF-8 leído previamente como
 // Latin-1. Normalizamos únicamente esas secuencias al serializar para que una
@@ -102,7 +121,12 @@ app.use('/api', teamContextRoutes);
 // En desarrollo Vite conserva su servidor y proxy habituales.
 const webDist = path.resolve(__dirname, '../../web/dist');
 if (fs.existsSync(path.join(webDist, 'index.html'))) {
-  app.use(express.static(webDist));
+  app.use(express.static(webDist, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+      if (filePath.endsWith(`${path.sep}sw.js`)) res.setHeader('Cache-Control', 'no-cache');
+    },
+  }));
   app.get('*', (_req, res) => res.sendFile(path.join(webDist, 'index.html')));
 } else {
   app.get('/', (_req, res) => res.status(503).send('No se encontró la interfaz de Termómetro. Reinstalá la aplicación o compilá la web.'));
@@ -120,21 +144,21 @@ const iniciarServidor = async () => {
     if (process.env.NODE_ENV === 'production' && (!process.env.INTEGRATION_ENCRYPTION_KEY || process.env.INTEGRATION_ENCRYPTION_KEY.length < 32 || KNOWN_PLACEHOLDERS.has(process.env.INTEGRATION_ENCRYPTION_KEY))) throw new Error('INTEGRATION_ENCRYPTION_KEY debe tener al menos 32 caracteres en producción y no puede ser un valor de ejemplo.');
     if (isLocalStorage()) {
       initializeLocalStorage();
-      console.log(`Almacenamiento local preparado en ${dataDirectory()}`);
+      log.info('persistencia', `Almacenamiento local preparado en ${dataDirectory()}`);
     } else {
-      console.log('Conectando a MongoDB...');
+      log.info('persistencia', 'Conectando a MongoDB.');
       await conectarDB();
-      console.log('Conectado a MongoDB');
+      log.info('persistencia', 'Conectado a MongoDB.');
     }
 
     const host = process.env.LOCAL_NETWORK === 'true' ? '0.0.0.0' : '127.0.0.1';
     app.listen(PORT, host, () => {
-      console.log(`Servidor en http://localhost:${PORT}`);
-      if (host === '0.0.0.0') console.log('Acceso de red local habilitado; permití el puerto en el firewall si Windows lo solicita.');
-      console.log(`Health: http://localhost:${PORT}/api/health`);
+      log.info('sistema', `Servidor en http://localhost:${PORT}`);
+      if (host === '0.0.0.0') log.info('red', 'Acceso de red local habilitado; permití el puerto en el firewall si Windows lo solicita.');
+      log.info('sistema', `Health: http://localhost:${PORT}/api/health`);
     });
   } catch (error) {
-    console.error('No se pudo iniciar el servidor:', error);
+    registrarError('sistema', error, { accion: 'iniciar' });
     process.exit(1);
   }
 };

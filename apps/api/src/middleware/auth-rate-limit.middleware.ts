@@ -22,7 +22,7 @@ const cleanup = () => {
   }
 };
 
-setInterval(cleanup, 60 * 1000);
+setInterval(cleanup, 60 * 1000).unref();
 
 const checkLimit = (map: Map<string, RateLimitEntry>, key: string, max: number): boolean => {
   const now = Date.now();

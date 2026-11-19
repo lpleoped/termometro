@@ -37,23 +37,24 @@ test('HTTP + Mongo: central switch, selection, deletion and ownership', { timeou
   };
   try {
     await t.test('new account starts off and cannot enable without a connection', async () => {
-      assert.deepEqual((await call('GET', '/ai/settings')).data, { enabled: false, defaultProviderId: null });
+      assert.deepEqual((await call('GET', '/ai/settings')).data, { enabled: false, defaultProviderId: null, budgetPreset: 'estándar' });
       assert.equal((await call('PUT', '/ai/settings', { enabled: true, defaultProviderId: null })).status, 400);
     });
     const connection = (await call('POST', '/ai/providers', { name: 'Disposable fixture', kind: 'openai-compatible', endpoint: 'https://example.com/v1', model: 'fixture', apiKey: 'fixture-key-never-sent' })).data;
     assert.ok(connection.id);
-    await t.test('all outbound entry points are blocked while off, including provider override', async () => {
-      for (const path of ['/ai/analyses', '/acciones/sugerencias', `/ai/providers/${connection.id}/test`]) {
+    await t.test('generation stays blocked while off, and the connection probe does not', async () => {
+      for (const path of ['/ai/analyses', '/acciones/sugerencias']) {
         const result = await call('POST', path, { instanciaId: new mongoose.Types.ObjectId().toString(), providerId: connection.id });
         assert.equal(result.status, 409, path);
         assert.equal(result.data.code, 'AI_DISABLED', path);
       }
-      assert.equal(externalCalls, 0);
+      assert.equal((await call('POST', `/ai/providers/${connection.id}/test`, {})).data.status, 'active');
+      assert.equal(externalCalls, 1);
     });
     await t.test('select, enable, verify, disable and re-enable without losing credentials', async () => {
       assert.equal((await call('PUT', '/ai/settings', { enabled: true, defaultProviderId: connection.id })).status, 200);
       assert.equal((await call('POST', `/ai/providers/${connection.id}/test`, {})).data.status, 'active');
-      assert.equal(externalCalls, 1);
+      assert.equal(externalCalls, 2);
       const ciphertext = (await AIProvider.findById(connection.id)).encryptedApiKey;
       await call('PUT', '/ai/settings', { enabled: false, defaultProviderId: connection.id });
       await call('PUT', `/ai/providers/${connection.id}`, { name: 'Updated fixture', apiKey: '' });
@@ -71,9 +72,9 @@ test('HTTP + Mongo: central switch, selection, deletion and ownership', { timeou
       assert.equal((await call('GET', '/ai/settings')).data.enabled, true);
       assert.equal((await call('DELETE', `/ai/providers/${connection.id}`)).status, 204);
       assert.deepEqual((await call('GET', '/ai/providers')).data, []);
-      assert.deepEqual((await call('GET', '/ai/settings')).data, { enabled: false, defaultProviderId: null });
+      assert.deepEqual((await call('GET', '/ai/settings')).data, { enabled: false, defaultProviderId: null, budgetPreset: 'estándar' });
       assert.equal((await call('POST', '/acciones/sugerencias', { instanciaId: new mongoose.Types.ObjectId().toString() })).data.code, 'AI_DISABLED');
-      assert.equal(externalCalls, 1);
+      assert.equal(externalCalls, 2);
     });
     await t.test('invalid inputs and missing authentication are rejected', async () => {
       assert.equal((await call('PUT', '/ai/settings', { enabled: 'false', defaultProviderId: null })).status, 400);

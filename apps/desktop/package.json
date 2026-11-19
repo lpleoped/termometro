@@ -2,6 +2,7 @@
   "name": "@termometro/desktop",
   "private": true,
   "version": "0.0.12",
+  "description": "Termómetro de Equipo — diagnóstico de equipos",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -13,18 +14,20 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.14",
-    "electron": "36.9.5",
+    "electron": "45.3.4",
     "electron-builder": "^26.18.0",
     "typescript": "~5.7.2"
   },
   "build": {
     "appId": "com.termometrodeequipo.desktop",
-    "productName": "Termómetro de Equipo",
+    "productName": "Termómetro",
+    "executableName": "Termometro",
     "artifactName": "Termometro-de-Equipo-Setup-${version}.${ext}",
     "asar": true,
     "npmRebuild": false,
     "files": [
       "dist/**/*",
+      "assets/icon.ico",
       "package.json",
       "!node_modules",
       "!../../node_modules"
@@ -48,6 +51,7 @@
       }
     ],
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         "nsis"
       ],

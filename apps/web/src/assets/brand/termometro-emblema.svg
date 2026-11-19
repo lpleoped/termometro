@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Emblema Termómetro</title>
+  <desc id="desc">Termómetro geométrico junto a tres barras horizontales de medición.</desc>
+  <g transform="translate(-9.49 -7)">
+  <path fill="none" stroke="#12263A" stroke-width="16" stroke-linejoin="round" d="M104 28C81.909 28 64 45.909 64 68v68c0 10-20 23-20 46 0 33.137 26.863 60 60 60s60-26.863 60-60c0-23-20-36-20-46V68c0-22.091-17.909-40-40-40Z"/>
+  <path fill="none" stroke="#3D6F91" stroke-width="12" stroke-linecap="round" d="M104 72v110"/>
+  <circle cx="104" cy="182" r="24" fill="#4B8A88" stroke="#12263A" stroke-width="8"/>
+  <path fill="#4B8A88" d="M189 92h35a7 7 0 0 1 7 7v0a7 7 0 0 1-7 7h-35a7 7 0 0 1-7-7v0a7 7 0 0 1 7-7Z"/>
+  <path fill="#3D6F91" d="M189 122h35a7 7 0 0 1 7 7v0a7 7 0 0 1-7 7h-35a7 7 0 0 1-7-7v0a7 7 0 0 1 7-7Z"/>
+  <path fill="#AAB8C2" d="M189 152h35a7 7 0 0 1 7 7v0a7 7 0 0 1-7 7h-35a7 7 0 0 1-7-7v0a7 7 0 0 1 7-7Z"/>
+  </g>
+</svg>

@@ -45,7 +45,7 @@ export const getHistoricoPorEquipoYEvaluacion = async (
   if (visibles.length && userId) {
     const { analyses: analisis, actions: acciones } = await historyAttachmentsRepository().list(userId, equipoId, evaluacionId, visibles);
     for (const ronda of seguimiento) {
-      ronda.analisis = analisis.filter(item => item.instanciaId === ronda.instanciaId).map(item => ({ ...item.result, id: String(item._id), instanciaId: item.instanciaId, creadoEn: item.creadoEn.toISOString(), snapshot: item.snapshot } as AIAnalysisResponse));
+      ronda.analisis = analisis.filter(item => item.instanciaId === ronda.instanciaId).map(item => ({ ...item.result, id: String(item._id), instanciaId: item.instanciaId, creadoEn: item.creadoEn.toISOString(), snapshot: item.snapshot, propuestasOmitidas: item.propuestasOmitidas || [] } as AIAnalysisResponse));
       ronda.acciones = acciones.filter(item => String(item.instanciaEvaluacion) === ronda.instanciaId).map(item => JSON.parse(JSON.stringify(item)) as AccionPlanResponse);
     }
   }

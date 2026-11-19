@@ -1,6 +1,7 @@
 import type { IEvaluacion } from '../models/Evaluacion';
 import type { TipoEvaluacion, TipoEvaluacionInfo } from '@termometro/shared';
 import { evaluationRepository } from '../repositories/evaluation.repository';
+import { teamRepository } from '../repositories/team.repository';
 
 const CONFIG_CLIMA = {
   maxIndicadores: 50,
@@ -16,6 +17,7 @@ interface CrearEvaluacionInput {
   tipo?: TipoEvaluacion;
   configuracion?: typeof CONFIG_CLIMA;
   creadoPor: string;
+  equipoId?: string;
   origenCuestionario?: 'manual' | 'ia';
   revisionHumanaAprobada?: boolean;
   secciones: Array<{
@@ -55,10 +57,19 @@ const validarEvaluacionClima = (secciones: CrearEvaluacionInput['secciones']) =>
   }
 };
 
+const equipoDelCuestionario = async (equipoId: string | undefined, usuarioId: string) => {
+  const limpio = equipoId?.trim();
+  if (!limpio) return undefined;
+  const equipo = await teamRepository().findOwnedActive(limpio, usuarioId);
+  if (!equipo) throw new Error('Ese equipo no está en tu espacio.');
+  return limpio;
+};
+
 export const crearEvaluacionService = async (
   data: CrearEvaluacionInput,
 ): Promise<IEvaluacion> => {
   const { titulo, descripcion, creadoPor, version, configuracion, origenCuestionario = 'manual', revisionHumanaAprobada = false } = data;
+  const equipoId = await equipoDelCuestionario(data.equipoId, creadoPor);
   const secciones = normalizarSecciones(data.secciones);
   if (origenCuestionario === 'ia' && revisionHumanaAprobada !== true) throw new Error('Un cuestionario generado con IA debe ser revisado y aprobado por una persona antes de publicarse');
 
@@ -79,6 +90,7 @@ export const crearEvaluacionService = async (
     configuracion: configuracion || CONFIG_CLIMA,
     secciones,
     creadoPor,
+    ...(equipoId ? { equipoId } : {}),
     origenCuestionario,
     revisionHumana: { estado: 'aprobada', revisadoPor: creadoPor, revisadoEn: new Date().toISOString() },
   }) as unknown as Promise<IEvaluacion>;

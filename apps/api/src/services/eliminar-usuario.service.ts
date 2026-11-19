@@ -1,5 +1,6 @@
 import { AccionPlan } from '../models/AccionPlan';
 import { AIAnalysis } from '../models/AIAnalysis';
+import { AIUsage } from '../models/AIUsage';
 import { AIProvider } from '../models/AIProvider';
 import { AISettingsModel } from '../models/AISettings';
 import { Equipo } from '../models/Equipo';
@@ -24,13 +25,22 @@ export type DeleteSummary = {
 const MONGO_COLLECTIONS = [
   'usuarios', 'equipos', 'evaluaciones', 'instanciasEvaluacion', 'respuestas',
   'accionesPlan', 'teamContextItems', 'teamIntegrationSettings', 'aiAnalyses',
-  'aiProviders', 'aiSettings', 'integrationConnections',
+  'aiProviders', 'aiSettings', 'aiUsages', 'integrationConnections',
 ] as const;
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
 const idOf = (value: unknown) => String(value ?? '');
 const localMatch = (value: unknown, expected: string) => idOf(value) === expected;
+
+/** Mongoose trata `$or: []` como “todo”. Sin equipos ni cuestionarios propios no hay rondas que borrar. */
+export const filtroDeInstanciasPropias = (equipoIds: readonly unknown[], evaluacionIds: readonly unknown[]) => {
+  const clausulas = [
+    ...(equipoIds.length ? [{ equipo: { $in: equipoIds } }] : []),
+    ...(evaluacionIds.length ? [{ evaluacion: { $in: evaluacionIds } }] : []),
+  ];
+  return clausulas.length ? { $or: clausulas } : null;
+};
 
 const emptySummary = (email: string, dryRun: boolean, collections: readonly string[]): DeleteSummary => ({
   email,
@@ -56,24 +66,23 @@ export const eliminarUsuarioMongo = async (email: string, dryRun = false): Promi
   ]);
   const equipoIds = equipos.map((item) => item._id);
   const evaluacionIds = evaluaciones.map((item) => item._id);
-  const instancias = await InstanciaEvaluacion.find({
-    $or: [
-      ...(equipoIds.length ? [{ equipo: { $in: equipoIds } }] : []),
-      ...(evaluacionIds.length ? [{ evaluacion: { $in: evaluacionIds } }] : []),
-    ],
-  }).select('_id').lean();
+  const filtroInstancias = filtroDeInstanciasPropias(equipoIds, evaluacionIds);
+  const instancias = filtroInstancias
+    ? await InstanciaEvaluacion.find(filtroInstancias).select('_id').lean()
+    : [];
   const instanciaIds = instancias.map((item) => item._id);
 
   add(summary, 'usuarios', 1);
   add(summary, 'equipos', equipos.length);
   add(summary, 'evaluaciones', evaluaciones.length);
   add(summary, 'instanciasEvaluacion', instancias.length);
-  const [respuestas, acciones, contextos, settingsEquipo, analisis, providers, settingsIA, conexiones] = await Promise.all([
+  const [respuestas, acciones, contextos, settingsEquipo, analisis, usos, providers, settingsIA, conexiones] = await Promise.all([
     Respuesta.countDocuments({ instanciaEvaluacion: { $in: instanciaIds } }),
     AccionPlan.countDocuments({ instanciaEvaluacion: { $in: instanciaIds } }),
     TeamContextItem.countDocuments({ teamId: { $in: equipoIds } }),
     TeamIntegrationSettings.countDocuments({ userId }),
     AIAnalysis.countDocuments({ userId }),
+    AIUsage.countDocuments({ userId }),
     AIProvider.countDocuments({ userId }),
     AISettingsModel.countDocuments({ userId }),
     IntegrationConnection.countDocuments({ userId }),
@@ -83,6 +92,7 @@ export const eliminarUsuarioMongo = async (email: string, dryRun = false): Promi
   add(summary, 'teamContextItems', contextos);
   add(summary, 'teamIntegrationSettings', settingsEquipo);
   add(summary, 'aiAnalyses', analisis);
+  add(summary, 'aiUsages', usos);
   add(summary, 'aiProviders', providers);
   add(summary, 'aiSettings', settingsIA);
   add(summary, 'integrationConnections', conexiones);
@@ -94,6 +104,7 @@ export const eliminarUsuarioMongo = async (email: string, dryRun = false): Promi
     TeamContextItem.deleteMany({ teamId: { $in: equipoIds } }),
     TeamIntegrationSettings.deleteMany({ userId }),
     AIAnalysis.deleteMany({ userId }),
+    AIUsage.deleteMany({ userId }),
     AIProvider.deleteMany({ userId }),
     AISettingsModel.deleteMany({ userId }),
     IntegrationConnection.deleteMany({ userId }),
@@ -136,6 +147,7 @@ export const eliminarUsuarioLocal = async (dataDirectory: string, email: string,
     teamContextItems: (row) => equipoIds.has(idOf(row.teamId)),
     teamIntegrationSettings: (row) => localMatch(row.userId, userId),
     aiAnalyses: (row) => localMatch(row.userId, userId),
+    aiUsages: (row) => localMatch(row.userId, userId),
     aiProviders: (row) => localMatch(row.userId, userId),
     aiSettings: (row) => localMatch(row.userId, userId),
     integrationConnections: (row) => localMatch(row.userId, userId),

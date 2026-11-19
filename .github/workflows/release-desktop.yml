@@ -62,6 +62,18 @@ jobs:
       - name: API local-flow tests
         run: npm run test:local-flow -w @termometro/api
 
+      - name: API context and authorization
+        run: npm run test:context -w @termometro/api
+
+      - name: API local HTTP journey
+        run: npm run test:local-http -w @termometro/api
+
+      - name: API storage parity
+        run: npm run test:parity -w @termometro/api
+
+      - name: API learning and history
+        run: npm run test:learning -w @termometro/api
+
       - name: Desktop unit tests
         run: npm run test -w @termometro/desktop
 
@@ -110,7 +122,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          name: Termómetro de Equipo ${{ github.ref_name }}
+          name: Termómetro ${{ github.ref_name }}
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true

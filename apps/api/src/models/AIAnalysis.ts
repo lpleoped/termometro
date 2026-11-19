@@ -14,6 +14,7 @@ export interface IAIAnalysis extends Document {
   parameters: { includeHistorico: boolean; contextSchemaVersion: string };
   contextItemIds: string[];
   historicalMemory?: { items: unknown[]; omittedCount: number };
+  propuestasOmitidas?: number[];
   snapshot?: { indiceGlobal: number | null; participacion: { esperada: number; recibida: number; porcentaje: number } };
   result: {
     resumen: string;
@@ -29,6 +30,14 @@ export interface IAIAnalysis extends Document {
     senalesEmocionales: Array<{ etiqueta: string; direccion: string; intensidad: number; confianza: number; interpretacion: string; evidenciaIds: string[] }>;
     temasRecurrentes: Array<{ tema: string; frecuencia: number; interpretacion: string; evidenciaIds: string[] }>;
     accionesContextuales?: Array<{ titulo: string; descripcion: string; prioridad: string; alcance: string; hallazgo?: string; contextoAplicado?: string[]; esCondicionPrevia?: boolean; requiereValidacion: boolean; ownerRole: string; horizon: string; successMetric: string; checkInQuestion: string; evidenceIds: string[] }>;
+    tono?: {
+      promptVersion: string;
+      oracion: string;
+      proporcion: { alivio: number; mezcla: number; tension: number };
+      marcas: Array<{ etiqueta: string; intensidad: number; direccion: string }>;
+      frases: Array<{ evidenciaId: string; direccion: string }>;
+      temas: Array<{ tema: string; interpretacion: string; evidenciaIds: string[] }>;
+    };
   };
   creadoEn: Date;
 }
@@ -47,6 +56,7 @@ const AIAnalysisSchema = new Schema<IAIAnalysis>({
   parameters: { includeHistorico: { type: Boolean, required: true }, contextSchemaVersion: { type: String, required: true } },
   contextItemIds: [{ type: String }],
   historicalMemory: { items: [Schema.Types.Mixed], omittedCount: Number },
+  propuestasOmitidas: { type: [Number], default: [] },
   snapshot: { indiceGlobal: { type: Number, default: null }, participacion: { esperada: Number, recibida: Number, porcentaje: Number } },
   result: {
     resumen: { type: String, required: true },
@@ -62,6 +72,14 @@ const AIAnalysisSchema = new Schema<IAIAnalysis>({
     temasRecurrentes: { type: [{ tema: { type: String, required: true }, frecuencia: { type: Number, min: 2, required: true }, interpretacion: { type: String, required: true }, evidenciaIds: { type: [String], required: true } }], required: true },
     fuentesTecnicas: [{ type: String }],
     accionesContextuales: [{ titulo: String, descripcion: String, prioridad: String, alcance: String, hallazgo: String, contextoAplicado: [String], esCondicionPrevia: Boolean, requiereValidacion: Boolean, ownerRole: String, horizon: String, successMetric: String, checkInQuestion: String, evidenceIds: [String] }],
+    tono: {
+      promptVersion: String,
+      oracion: String,
+      proporcion: { alivio: Number, mezcla: Number, tension: Number },
+      marcas: [{ etiqueta: String, intensidad: Number, direccion: String }],
+      frases: [{ evidenciaId: String, direccion: String }],
+      temas: [{ tema: String, interpretacion: String, evidenciaIds: [String] }],
+    },
   },
 }, { timestamps: { createdAt: 'creadoEn', updatedAt: false } });
 

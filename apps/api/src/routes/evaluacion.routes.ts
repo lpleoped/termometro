@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import {
   listarEvaluaciones,
-  obtenerEvaluacionPublica,
+  obtenerEvaluacion,
   crearEvaluacion,
   editarEvaluacion,
   eliminarEvaluacion,
@@ -23,8 +23,8 @@ router.get('/evaluaciones', authMiddleware, (req: Request, res: Response) => {
   listarEvaluaciones(req, res);
 });
 
-router.get('/evaluaciones/:id', (req: Request, res: Response) => {
-  obtenerEvaluacionPublica(req, res);
+router.get('/evaluaciones/:id', authMiddleware, (req: Request, res: Response) => {
+  obtenerEvaluacion(req, res);
 });
 
 router.put('/evaluaciones/:id', authMiddleware, (req: Request, res: Response) => {

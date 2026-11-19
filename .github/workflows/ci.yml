@@ -40,8 +40,30 @@ jobs:
       - name: API local-flow tests
         run: npm run test:local-flow -w @termometro/api
 
+      - name: API schema parity
+        run: npm run test:schemas -w @termometro/api
+
       - name: API repositories tests
         run: npm run test:repositories -w @termometro/api
+
+      - name: API context and authorization
+        run: npm run test:context -w @termometro/api
+
+      - name: API local HTTP journey
+        run: npm run test:local-http -w @termometro/api
+
+      - name: API storage parity
+        run: npm run test:parity -w @termometro/api
+
+      - name: API learning and history
+        run: npm run test:learning -w @termometro/api
+
+      - name: Install Chromium for the manual browser journey
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser journey without a model
+        run: npm run test:e2e -w @termometro/web
 
       - name: Desktop unit tests
         run: npm run test -w @termometro/desktop

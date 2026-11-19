@@ -8,4 +8,4 @@ cp apps/web/.env.example apps/web/.env
 npm run dev:web
 ```
 
-Demo: http://localhost:5173 · login seed `test@test.com` / `123123`
+En desarrollo, la interfaz queda en http://localhost:5173. La cuenta se crea en el primer arranque local.

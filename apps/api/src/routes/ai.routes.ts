@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 
-import { getAIProviders, postAIProvider, testAIProvider, postAIAnalysis, putAIProvider, deleteAIProvider, getAIAnalyses, getSettings, putSettings, postAIQuestionnaire } from '../controllers/ai.controller';
+import { getAIProviders, postAIProvider, testAIProvider, postAIAnalysis, putAIProvider, deleteAIProvider, getAIAnalyses, getSettings, putSettings, postAIQuestionnaire, omitirPropuesta, getUso } from '../controllers/ai.controller';
 
 const router = Router();
 router.use(authMiddleware);
@@ -14,5 +14,7 @@ router.delete('/ai/providers/:id', deleteAIProvider);
 router.post('/ai/providers/:id/test', testAIProvider);
 router.post('/ai/analyses', postAIAnalysis);
 router.get('/ai/analyses', getAIAnalyses);
+router.get('/uso', getUso);
+router.post('/ai/analyses/:id/omitir', omitirPropuesta);
 router.post('/ai/questionnaires/generate', postAIQuestionnaire);
 export default router;

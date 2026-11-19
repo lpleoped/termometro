@@ -6,8 +6,12 @@ build/
 .env.*
 !.env.example
 *.log
+logs/
 .DS_Store
 coverage/
+test-results/
+playwright-report/
+blob-report/
 .turbo/
 *.tsbuildinfo
 .vscode/
@@ -18,9 +22,11 @@ coverage/
 AGENTS.md
 
 # Docs internas / de planificación — no usadas por el programa
-# Se publica solo el doc de titularidad (obligatorio OSS)
+# Se publican la titularidad y docs/dev/. docs/interno/ queda fuera.
 docs/*
 !docs/ORIGEN_Y_TITULARIDAD.md
+!docs/dev/
+!docs/dev/**
 
 # Empaquetado desktop local (artefactos grandes)
 apps/desktop/release/
@@ -30,3 +36,6 @@ apps/desktop/.runtime/package-lock.json
 
 # Build suelto de Electron en la raíz (no es fuente)
 /main.js
+
+# Borrador de publicación. No es la aplicación ni se versiona.
+/lanzamiento/

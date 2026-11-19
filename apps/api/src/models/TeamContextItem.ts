@@ -10,6 +10,7 @@ export type TeamContextInfluence = 'interpretation' | 'risk' | 'action' | 'preco
 export interface ITeamContextItem extends Document {
   teamId: Types.ObjectId; type: TeamContextType; title: string; content: string; source?: string;
   scope: TeamContextScope; status: TeamContextStatus; confidence: number; importance: TeamContextImportance; sensitivity: TeamContextSensitivity; influence: TeamContextInfluence; validFrom?: Date; validUntil?: Date;
+  learningKey?: string;
   createdBy: string; updatedBy: string; version: number; createdAt: Date; updatedAt: Date;
 }
 
@@ -25,8 +26,10 @@ const schema = new Schema<ITeamContextItem>({
   importance: { type: String, enum: ['informative', 'relevant', 'critical'], default: 'relevant' },
   sensitivity: { type: String, enum: ['normal', 'sensitive', 'highly_sensitive'], default: 'normal' },
   influence: { type: String, enum: ['interpretation', 'risk', 'action', 'precondition', 'group_action', 'do_not_act_directly', 'interpretation_and_action'], default: 'interpretation_and_action' },
+  learningKey: { type: String, maxlength: 90 },
   createdBy: { type: String, required: true }, updatedBy: { type: String, required: true }, version: { type: Number, default: 1, min: 1 },
 }, { timestamps: true });
 
 schema.index({ teamId: 1, status: 1, type: 1 });
+schema.index({ learningKey: 1 }, { unique: true, sparse: true });
 export const TeamContextItem = model<ITeamContextItem>('TeamContextItem', schema);

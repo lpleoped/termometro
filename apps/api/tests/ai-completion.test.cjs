@@ -19,6 +19,8 @@ test('GPT-5 has bounded output and low reasoning; compatible endpoints do not in
   const other = completionBody('https://example.com/v1', 'gpt-5', []);
   assert.equal(other.reasoning_effort, undefined);
   assert.equal(other.max_tokens, 4096);
+  assert.equal(completionBody('https://example.com/v1', 'gpt-4o-mini', [], false, 2048).max_tokens, 2048);
+  assert.equal(completionBody('https://api.openai.com/v1', 'gpt-5', [], true, 2048).max_completion_tokens, 1024);
 });
 
 test('rejects HTTP 200 with exhausted reasoning budget, no text, refusal or invalid JSON', () => {

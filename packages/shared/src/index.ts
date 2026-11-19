@@ -1,5 +1,7 @@
 /** Contratos compartidos API ↔ Web — Termómetro. */
 
+import { PASOS_FACILITADOR as pasosFacilitador, siguientePaso as calcularSiguientePaso } from './siguiente-paso';
+
 export const PRODUCT_NAME = 'Termómetro';
 
 /** Tipo de evaluación del producto (clima por secciones ponderadas). */
@@ -12,6 +14,8 @@ export interface HealthResponse {
   mongo?: 'connected' | 'disconnected';
   storage?: 'json' | 'mongo';
   dataDirectory?: string;
+  /** `lan` cuando esta computadora ya aceptó servir la encuesta en la red local. */
+  networkListening?: 'loopback' | 'lan';
 }
 
 /** Estado de inicio seguro para la interfaz: nunca incluye rutas ni secretos locales. */
@@ -150,15 +154,7 @@ export interface HistoricoResponse {
   };
 }
 
-/** Semáforo de clima (índice 0–100). */
-export type SemaforoClima = 'Excelente' | 'Bueno' | 'Regular' | 'Crítico';
-
-export function interpretarIndiceClima(indice: number): SemaforoClima {
-  if (indice >= 80) return 'Excelente';
-  if (indice >= 60) return 'Bueno';
-  if (indice >= 40) return 'Regular';
-  return 'Crítico';
-}
+export { interpretarIndiceClima, type SemaforoClima } from './semaforo';
 
 export type AIProviderKind = 'openai-compatible' | 'azure-openai' | 'ollama';
 export type AIProviderStatus = 'active' | 'invalid' | 'unverified';
@@ -197,6 +193,20 @@ export interface AISettings {
 }
 
 export const AI_ANALYSIS_SCHEMA_VERSION = 'team-climate-analysis.v1';
+export const TONE_PROMPT_VERSION = 'tone.v1';
+
+export type MarcaTono = 'confianza' | 'pertenencia' | 'energia' | 'seguridad' | 'frustracion' | 'reconocimiento' | 'incertidumbre' | 'tension';
+export type TramoTono = 'alivio' | 'mezcla' | 'tension';
+export type DireccionMarca = 'positiva' | 'negativa' | 'mixta';
+
+export interface TonoAgregado {
+  promptVersion: typeof TONE_PROMPT_VERSION;
+  oracion: string;
+  proporcion: { alivio: number; mezcla: number; tension: number };
+  marcas: Array<{ etiqueta: MarcaTono; intensidad: number; direccion: DireccionMarca }>;
+  frases: Array<{ evidenciaId: string; direccion: TramoTono }>;
+  temas: Array<{ tema: string; interpretacion: string; evidenciaIds: string[] }>;
+}
 
 export interface AIAnalysisMetadata {
   schemaVersion: typeof AI_ANALYSIS_SCHEMA_VERSION;
@@ -227,10 +237,28 @@ export interface AIAnalysisResponse {
   contextoUtilizado?: string[];
   contextoOmitido?: number;
   accionesContextuales?: ContextualAction[];
+  propuestasOmitidas?: number[];
+  tono?: TonoAgregado;
 }
 
 export type EstadoAccion = 'generada' | 'en_revision' | 'aprobada' | 'rechazada' | 'ejecutada' | 'verificada';
 export type HorizonteAccion = '7d' | '30d' | '90d';
+export type VeredictoAccion = 'sin_medicion_posterior' | 'todavia_es_pronto' | 'hay_una_senal' | 'no_se_movio' | 'se_movio_en_contra';
+export const ETIQUETA_VEREDICTO: Record<VeredictoAccion, string> = {
+  sin_medicion_posterior: 'sin medición posterior',
+  todavia_es_pronto: 'todavía es pronto',
+  hay_una_senal: 'hay una señal de mejora',
+  no_se_movio: 'no se movió',
+  se_movio_en_contra: 'se movió en contra',
+};
+export interface VeredictoIndicador {
+  indicadorId: string;
+  texto?: string;
+  valorAdopcion?: number;
+  valorPosterior?: number;
+  delta?: number;
+  veredicto: VeredictoAccion;
+}
 
 export interface AccionPlanInput {
   instanciaId: string;
@@ -257,6 +285,8 @@ export interface AccionPlanResponse extends Omit<AccionPlanInput, 'instanciaId'>
   propuestaOriginal?: string;
   checkIns?: Array<{ horizonte: HorizonteAccion; venceEn: string; estado: 'pendiente' | 'completado'; nota?: string; completadoEn?: string; resultado?: { indiceAnterior?: number; indicePosterior?: number; delta?: number } }>;
   resultado?: { indiceAnterior?: number; indicePosterior?: number; delta?: number; medidoEn?: string; interpretacion?: string };
+  veredictos?: VeredictoIndicador[];
+  integraciones?: Array<{ provider: 'slack' | 'monday'; externalId?: string; url?: string; status: 'published' | 'error'; error?: string; publishedAt: string }>;
 }
 
 export interface HistoricoSeguimiento {
@@ -317,6 +347,7 @@ export type TeamContextInfluence = 'interpretation' | 'risk' | 'action' | 'preco
 
 export interface TeamContextItem {
   id: string; teamId: string; type: TeamContextType; title: string; content: string; source?: string;
+  learningKey?: string;
   scope: TeamContextScope; status: TeamContextStatus; confidence: number; validFrom?: string; validUntil?: string;
   importance: TeamContextImportance; sensitivity: TeamContextSensitivity; influence: TeamContextInfluence;
   createdBy: string; updatedBy: string; version: number; createdAt: string; updatedAt: string;
@@ -341,6 +372,30 @@ export interface QuantitativeSection { id: string; name: string; score: number |
 export interface QuantitativeIndicator { id: string; name: string; score: number | null; n: number; quality?: QuantitativeQuality; }
 export interface QualitativeTheme { name: string; frequency: number; sentiment: SentimentDirection; evidenceIds: string[]; }
 export interface QualitativeResponse { id: string; question: string; section: string; text: string; }
+export const siguientePaso = calcularSiguientePaso;
+export const PASOS_FACILITADOR = pasosFacilitador;
+export type { EstadoFacilitador, PasoFacilitador } from './siguiente-paso';
+
+export type MotivoUso = 'prueba' | 'cuestionario' | 'lectura' | 'tono';
+
+export interface ConsultaUso {
+  id: string;
+  fecha: string;
+  motivo: MotivoUso;
+  modelo: string;
+  tokensEntrada: number | null;
+  tokensSalida: number | null;
+  costoEstimado: number | null;
+}
+
+export interface ResumenUso {
+  periodo: { desde: string; hasta: string };
+  totales: { consultas: number; tokensEntrada: number; tokensSalida: number; costoEstimado: number | null; consultasSinTokens: number };
+  porMotivo: Array<{ motivo: MotivoUso; consultas: number; tokensEntrada: number; tokensSalida: number }>;
+  consultas: ConsultaUso[];
+  nuncaConsulto: boolean;
+}
+
 export interface TeamClimateContext {
   schemaVersion: 'team-climate-context.v1';
   scope: { equipoId: string; instanciaId: string; evaluacionId: string; periodo: string };

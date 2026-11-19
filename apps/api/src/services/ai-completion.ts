@@ -1,8 +1,23 @@
 import axios from 'axios';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import dns from 'node:dns/promises';
 import net from 'node:net';
 import http from 'node:http';
 import https from 'node:https';
+import { getBudgetLimits } from './ai-budget-presets';
+
+const DEBUG_LOG_TEMP = path.join(os.tmpdir(), 'termometro-debug-2d2e45.log');
+
+export function debugAgentLog(payload: Record<string, unknown>) {
+  const line = JSON.stringify({ sessionId: '2d2e45', timestamp: Date.now(), ...payload });
+  // #region agent log
+  console.error('[debug-2d2e45]', payload.location, payload.message, payload.data);
+  fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'2d2e45'},body:line}).catch(()=>{});
+  try { fs.appendFileSync(DEBUG_LOG_TEMP, line + '\n'); } catch (e) { console.error('[debug-2d2e45] write temp failed', e instanceof Error ? e.message : e); }
+  // #endregion
+}
 
 export const AI_CHECK_VERSION = 2;
 export const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 180_000; // Increased from 120s to 180s for cold-start
@@ -32,7 +47,21 @@ export const assertSafeEndpoint = async (endpoint: string) => {
 };
 
 export class AIRequestError extends Error {
-  constructor(public code: string, message: string, public status = 502, public diagnostic?: string) { super(message); }
+  constructor(public code: string, message: string, public status = 502, public diagnostic?: string) {
+    super(message);
+    this.name = 'AIRequestError';
+  }
+}
+
+/** Sobrevive a recargas de ts-node-dev donde `instanceof` falla entre copias del módulo. */
+export function asAIRequestError(error: unknown): AIRequestError | null {
+  if (error instanceof AIRequestError) return error;
+  if (!error || typeof error !== 'object') return null;
+  const value = error as { name?: string; code?: unknown; message?: unknown; status?: unknown; diagnostic?: unknown };
+  if (typeof value.code !== 'string' || !value.code.startsWith('AI_') || typeof value.message !== 'string') return null;
+  if (typeof value.status !== 'number' || !Number.isInteger(value.status)) return null;
+  if (value.name && value.name !== 'Error' && value.name !== 'AIRequestError') return null;
+  return new AIRequestError(value.code, value.message, value.status, typeof value.diagnostic === 'string' ? value.diagnostic : undefined);
 }
 
 const safeDiagnostic = (value: unknown) => {
@@ -48,7 +77,10 @@ const providerDiagnostic = (error: any) => {
 };
 
 export function aiError(error: unknown): AIRequestError {
-  if (error instanceof AIRequestError) return error;
+  const _dbg = error as { name?: string; message?: string; code?: string; status?: number; syscall?: string; stack?: string; response?: { status?: number } };
+  const known = asAIRequestError(error);
+  debugAgentLog({runId:'pre-fix',hypothesisId:'A',location:'ai-completion.ts:aiError',message:'clasificacion de error de IA',data:{name:_dbg?.name,code:_dbg?.code,status:_dbg?.status ?? _dbg?.response?.status,syscall:_dbg?.syscall,isAxios:axios.isAxiosError(error),isAI:error instanceof AIRequestError,duckAI:Boolean(known),aiCode:known?.code ?? (error instanceof AIRequestError ? error.code : undefined),message:typeof _dbg?.message==='string'?_dbg.message.slice(0,240):undefined,stack:typeof _dbg?.stack==='string'?_dbg.stack.split('\n').slice(0,4).join(' | '):undefined}});
+  if (known) return known;
   if (axios.isAxiosError(error)) {
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       const timeoutSeconds = Math.round(AI_TIMEOUT_MS / 1000);
@@ -62,18 +94,57 @@ export function aiError(error: unknown): AIRequestError {
     if (status === 400 || status === 404) return new AIRequestError('AI_CONFIGURATION', 'El proveedor rechazó el modelo o el formato de la solicitud. Revisá el modelo y la dirección del servicio en Configuración de IA.', 502, providerDiagnostic(error));
     return new AIRequestError('AI_UNAVAILABLE', 'No se pudo obtener una respuesta del proveedor. Revisá la conexión y volvé a intentar.', 502, providerDiagnostic(error));
   }
-  return new AIRequestError('AI_INTERNAL', 'No se pudo completar el análisis. Volvé a intentar; si persiste, revisá la configuración.');
+  const networkCode = typeof _dbg?.code === 'string' ? _dbg.code : undefined;
+  if (networkCode && ['ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'EAI_AGAIN', 'EPIPE', 'ENETUNREACH'].includes(networkCode)) {
+    return new AIRequestError('AI_UNAVAILABLE', 'No se pudo obtener una respuesta del proveedor. Revisá la conexión y volvé a intentar.', 502, safeDiagnostic(`${networkCode}${_dbg?.message ? `: ${_dbg.message}` : ''}`));
+  }
+  return new AIRequestError('AI_INTERNAL', 'No se pudo completar el análisis. Volvé a intentar; si persiste, revisá la configuración.', 502, safeDiagnostic(typeof _dbg?.message === 'string' ? _dbg.message : networkCode));
 }
 
-export function completionBody(endpoint: string, model: string, messages: unknown[], probe = false) {
+const instructionMojibake = /[\u00C3\u00C2\u00E2\u00F0](?:[\u0080-\u00FF\u0192\u20AC\u2018-\u2022\u2026\u2030\u2122\u0178])+/;
+
+/** Las instrucciones propias se envían tal cual. Un texto con codificación rota no puede llegar al modelo. */
+export function assertCleanInstructionText(text: string, name = 'interna') {
+  if (instructionMojibake.test(text)) {
+    throw new AIRequestError('AI_PROMPT_ENCODING', `La instrucción ${name} tiene texto con codificación rota.`, 500);
+  }
+}
+
+export function completionBody(endpoint: string, model: string, messages: unknown[], probe = false, maxOutputTokens?: number) {
   const openai = new URL(endpoint).hostname === 'api.openai.com';
   // Only apply this capability to the documented GPT-5 family on OpenAI.
   const reasoning = openai && /^gpt-5(?:-(?:mini|nano))?(?:-\d{4}-\d{2}-\d{2})?$/.test(model);
+  const salida = probe ? 1024 : (typeof maxOutputTokens === 'number' && maxOutputTokens > 0 ? Math.floor(maxOutputTokens) : getBudgetLimits().maxOutputTokens);
   return {
     model, messages, response_format: { type: 'json_object' },
-    ...(openai ? { max_completion_tokens: probe ? 1024 : 4096 } : { max_tokens: probe ? 1024 : 4096 }),
+    ...(openai ? { max_completion_tokens: salida } : { max_tokens: salida }),
     ...(reasoning ? { reasoning_effort: 'low' } : {}),
   };
+}
+
+export function leerUsoProveedor(data: unknown): { tokensEntrada: number | null; tokensSalida: number | null; costoEstimado: number | null } | null {
+  const usage = (data as { usage?: unknown } | null)?.usage;
+  if (!usage || typeof usage !== 'object') return null;
+  const bloque = usage as Record<string, unknown>;
+  const numero = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+  return {
+    tokensEntrada: numero(bloque.prompt_tokens ?? bloque.input_tokens),
+    tokensSalida: numero(bloque.completion_tokens ?? bloque.output_tokens),
+    costoEstimado: numero(bloque.cost ?? bloque.estimated_cost ?? bloque.total_cost),
+  };
+}
+
+const USO = Symbol.for('termometro.usoProveedor');
+
+export function adjuntarUso<T>(valor: T, data: unknown): T {
+  if (!valor || typeof valor !== 'object') return valor;
+  Object.defineProperty(valor, USO, { value: leerUsoProveedor(data), enumerable: false });
+  return valor;
+}
+
+export function usoDe(valor: unknown): { tokensEntrada: number | null; tokensSalida: number | null; costoEstimado: number | null } | null {
+  if (!valor || typeof valor !== 'object' || !(USO in valor)) return null;
+  return (valor as Record<symbol, { tokensEntrada: number | null; tokensSalida: number | null; costoEstimado: number | null } | null>)[USO] ?? null;
 }
 
 export function parseCompletion(data: any): unknown {
@@ -87,7 +158,11 @@ export function parseCompletion(data: any): unknown {
   catch { throw new AIRequestError('AI_FORMAT', 'El proveedor devolvió una respuesta con formato inválido. Volvé a intentar.', 502, 'El contenido recibido no era JSON válido. Puede indicar un endpoint incompatible o una respuesta de formato antiguo.'); }
 }
 
-export async function requestCompletion(endpoint: string, model: string, token: string | undefined, messages: unknown[], probe = false) {
+export async function requestCompletion(endpoint: string, model: string, token: string | undefined, messages: unknown[], probe = false, maxOutputTokens?: number) {
+  messages.forEach((message) => {
+    const instruction = message as { role?: string; content?: unknown };
+    if (instruction?.role === 'system' && typeof instruction.content === 'string') assertCleanInstructionText(instruction.content);
+  });
   try {
     const pinnedAddress = await assertSafeEndpoint(endpoint);
     const url = new URL(endpoint);
@@ -97,16 +172,132 @@ export async function requestCompletion(endpoint: string, model: string, token: 
       else callback(null, pinnedAddress, family);
     } : undefined;
     const agent = url.protocol === 'https:' ? new https.Agent({ lookup: lookup as any }) : new http.Agent({ lookup: lookup as any });
-    const response = await axios.post(`${endpoint}/chat/completions`, completionBody(endpoint, model, messages, probe), {
+    const response = await axios.post(`${endpoint}/chat/completions`, completionBody(endpoint, model, messages, probe, maxOutputTokens), {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
       timeout: AI_TIMEOUT_MS, maxRedirects: 0, maxContentLength: 1024 * 1024, httpAgent: agent, httpsAgent: agent,
     });
-    return parseCompletion(response.data);
-  } catch (error) { throw aiError(error); }
+    return adjuntarUso(parseCompletion(response.data), response.data);
+  } catch (error) {
+    const _raw = error as { name?: string; message?: string; code?: string; syscall?: string; response?: { status?: number } };
+    let _host = 'url-invalida';
+    try { _host = new URL(endpoint).hostname; } catch { /* host ausente */ }
+    debugAgentLog({runId:'pre-fix',hypothesisId:'D',location:'ai-completion.ts:requestCompletion',message:'error crudo antes de aiError',data:{name:_raw?.name,code:_raw?.code,status:_raw?.response?.status,syscall:_raw?.syscall,isAxios:axios.isAxiosError(error),isAI:error instanceof AIRequestError,aiCode:error instanceof AIRequestError ? error.code : undefined,host:_host,model,message:typeof _raw?.message==='string'?_raw.message.slice(0,240):undefined}});
+    throw aiError(error);
+  }
+}
+
+function formatFailureShape(v: Record<string, unknown> | null) {
+  const tipo = (x: unknown) => (x === null ? 'null' : Array.isArray(x) ? 'array' : typeof x);
+  const enumCorto = (x: unknown) => (typeof x === 'string' && x.length <= 40 ? x : tipo(x));
+  const lista = (item: unknown) => {
+    if (!Array.isArray(item)) return { ok: false, tipo: tipo(item) };
+    const malos = item.map((s, i) => (typeof s !== 'string' ? { i, tipo: tipo(s) } : s.length > 4000 ? { i, chars: s.length } : null)).filter(Boolean);
+    return { ok: item.length <= 20 && malos.length === 0, n: item.length, malos: malos.slice(0, 3) };
+  };
+  const ids = (item: unknown, min: number, max: number) => {
+    if (!Array.isArray(item)) return `tipo:${tipo(item)}`;
+    if (item.length < min || item.length > max) return `n:${item.length}`;
+    const malo = item.findIndex((id) => typeof id !== 'string' || id.length > 200);
+    return malo >= 0 ? `item${malo}:${tipo(item[malo])}` : 'ok';
+  };
+  const num01 = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1 ? 'ok' : `${tipo(x)}:${String(x).slice(0, 24)}`);
+  const hallazgos = (item: unknown) => {
+    if (!Array.isArray(item)) return { ok: false, tipo: tipo(item) };
+    const malos = item.map((f: any, i) => {
+      if (!f || typeof f !== 'object') return { i, tipo: tipo(f) };
+      const p: string[] = [];
+      if (typeof f.titulo !== 'string' || f.titulo.length > 300) p.push(`titulo:${tipo(f.titulo)}`);
+      if (!['fortaleza', 'riesgo', 'oportunidad', 'divergencia'].includes(f.tipo)) p.push(`tipo:${enumCorto(f.tipo)}`);
+      if (!['baja', 'media', 'alta'].includes(f.severidad)) p.push(`severidad:${enumCorto(f.severidad)}`);
+      const ev = ids(f.evidenciaIds, 1, 10);
+      if (ev !== 'ok') p.push(`evidenciaIds:${ev}`);
+      const c = num01(f.confianza);
+      if (c !== 'ok') p.push(`confianza:${c}`);
+      return p.length ? { i, p } : null;
+    }).filter(Boolean);
+    return { ok: item.length <= 20 && malos.length === 0, n: item.length, malos: malos.slice(0, 4) };
+  };
+  const senales = (item: unknown) => {
+    if (!Array.isArray(item)) return { ok: false, tipo: tipo(item) };
+    const malos = item.map((s: any, i) => {
+      if (!s || typeof s !== 'object') return { i, tipo: tipo(s) };
+      const p: string[] = [];
+      if (typeof s.etiqueta !== 'string' || s.etiqueta.length > 100) p.push(`etiqueta:${tipo(s.etiqueta)}`);
+      if (!['positiva', 'negativa', 'mixta', 'neutral'].includes(s.direccion)) p.push(`direccion:${enumCorto(s.direccion)}`);
+      const intensidad = num01(s.intensidad);
+      if (intensidad !== 'ok') p.push(`intensidad:${intensidad}`);
+      const c = num01(s.confianza);
+      if (c !== 'ok') p.push(`confianza:${c}`);
+      if (typeof s.interpretacion !== 'string' || s.interpretacion.length > 1000) p.push(`interpretacion:${tipo(s.interpretacion)}`);
+      const ev = ids(s.evidenciaIds, 1, 10);
+      if (ev !== 'ok') p.push(`evidenciaIds:${ev}`);
+      return p.length ? { i, p } : null;
+    }).filter(Boolean);
+    return { ok: item.length <= 12 && malos.length === 0, n: item.length, malos: malos.slice(0, 4) };
+  };
+  const temas = (item: unknown) => {
+    if (!Array.isArray(item)) return { ok: false, tipo: tipo(item) };
+    const malos = item.map((t: any, i) => {
+      if (!t || typeof t !== 'object') return { i, tipo: tipo(t) };
+      const p: string[] = [];
+      if (typeof t.tema !== 'string' || t.tema.length > 200) p.push(`tema:${tipo(t.tema)}`);
+      if (!Number.isInteger(t.frecuencia) || t.frecuencia < 2) p.push(`frecuencia:${tipo(t.frecuencia)}:${String(t.frecuencia).slice(0, 24)}`);
+      if (typeof t.interpretacion !== 'string' || t.interpretacion.length > 1000) p.push(`interpretacion:${tipo(t.interpretacion)}`);
+      const ev = ids(t.evidenciaIds, 2, 50);
+      if (ev !== 'ok') p.push(`evidenciaIds:${ev}`);
+      return p.length ? { i, p } : null;
+    }).filter(Boolean);
+    return { ok: item.length <= 20 && malos.length === 0, n: item.length, malos: malos.slice(0, 4) };
+  };
+  const acciones = (item: unknown) => {
+    if (!Array.isArray(item)) return { ok: false, tipo: tipo(item) };
+    const malos = item.map((a: any, i) => {
+      if (!a || typeof a !== 'object') return { i, tipo: tipo(a) };
+      const p: string[] = [];
+      if (typeof a.titulo !== 'string' || a.titulo.length > 300) p.push(`titulo:${tipo(a.titulo)}`);
+      if (typeof a.descripcion !== 'string' || a.descripcion.length > 2000) p.push(`descripcion:${tipo(a.descripcion)}`);
+      if (!['baja', 'media', 'alta'].includes(a.prioridad)) p.push(`prioridad:${enumCorto(a.prioridad)}`);
+      if (!['equipo', 'liderazgo', 'proyecto'].includes(a.alcance)) p.push(`alcance:${enumCorto(a.alcance)}`);
+      if (typeof a.ownerRole !== 'string' || a.ownerRole.length > 200) p.push(`ownerRole:${tipo(a.ownerRole)}`);
+      if (!['7d', '30d', '90d'].includes(a.horizon)) p.push(`horizon:${enumCorto(a.horizon)}`);
+      if (typeof a.successMetric !== 'string' || a.successMetric.length > 500) p.push(`successMetric:${tipo(a.successMetric)}`);
+      if (typeof a.checkInQuestion !== 'string' || a.checkInQuestion.length > 500) p.push(`checkInQuestion:${tipo(a.checkInQuestion)}`);
+      const ev = ids(a.evidenceIds, 1, 999);
+      if (ev !== 'ok') p.push(`evidenceIds:${ev}`);
+      if (a.requiereValidacion !== true) p.push(`requiereValidacion:${tipo(a.requiereValidacion)}:${String(a.requiereValidacion).slice(0, 12)}`);
+      return p.length ? { i, p, claves: Object.keys(a) } : null;
+    }).filter(Boolean);
+    return { ok: item.length <= 3 && malos.length === 0, n: item.length, malos: malos.slice(0, 3) };
+  };
+  return {
+    claves: v ? Object.keys(v) : [],
+    resumen: { ok: Boolean(v && typeof v.resumen === 'string' && v.resumen.trim() && v.resumen.length <= 8000), tipo: tipo(v?.resumen), chars: typeof v?.resumen === 'string' ? v.resumen.length : 0 },
+    nivelConfianza: num01(v?.nivelConfianza),
+    listas: { fortalezas: lista(v?.fortalezas), alertas: lista(v?.alertas), recomendaciones: lista(v?.recomendaciones), fuentes: lista(v?.fuentes), limitations: lista(v?.limitations) },
+    hallazgos: hallazgos(v?.hallazgos),
+    senales: v?.senalesEmocionales === undefined ? { ausente: true } : senales(v.senalesEmocionales),
+    temas: v?.temasRecurrentes === undefined ? { ausente: true } : temas(v.temasRecurrentes),
+    acciones: v?.accionesContextuales === undefined ? { ausente: true } : acciones(v.accionesContextuales),
+  };
 }
 
 export function validateAnalysis(value: unknown) {
   const v = value as Record<string, unknown> | null;
+  const temasRecibidos = v?.temasRecurrentes;
+  if (v && Array.isArray(temasRecibidos)) {
+    const temas = temasRecibidos.filter((theme) => {
+      const item = theme as { evidenciaIds?: unknown; frecuencia?: unknown };
+      return Array.isArray(item?.evidenciaIds) && item.evidenciaIds.length >= 2 && Number.isInteger(item.frecuencia) && (item.frecuencia as number) >= 2;
+    });
+    const omitidos = temasRecibidos.length - temas.length;
+    v.temasRecurrentes = temas;
+    if (omitidos > 0 && Array.isArray(v.limitations)) {
+      v.limitations = [...v.limitations, 'Se omitió un tema que no reunía al menos dos respuestas distintas.'];
+    }
+    // #region agent log
+    if (omitidos > 0) fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6531f2'},body:JSON.stringify({sessionId:'6531f2',runId:'post-fix',hypothesisId:'H3',location:'ai-completion.ts:validateAnalysis',message:'temas sin recurrencia omitidos',data:{omitidos,quedan:temas.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }
   const list = (item: unknown): item is string[] => Array.isArray(item) && item.length <= 20 && item.every(s => typeof s === 'string' && s.length <= 4000);
   const findings = (item: unknown) => {
     if (!Array.isArray(item) || item.length > 20) return false;
@@ -140,9 +331,17 @@ export function validateAnalysis(value: unknown) {
     !list(v.fortalezas) || !list(v.alertas) || !list(v.recomendaciones) || !list(v.fuentes) || !list(v.limitations) || !findings(v.hallazgos) || (v.senalesEmocionales !== undefined && !emotionalSignals(v.senalesEmocionales)) || (v.temasRecurrentes !== undefined && !recurringThemes(v.temasRecurrentes)) || (v.accionesContextuales !== undefined && !actions(v.accionesContextuales)) ||
     typeof v.nivelConfianza !== 'number' || !Number.isFinite(v.nivelConfianza) || v.nivelConfianza < 0 || v.nivelConfianza > 1) {
     const fields = ['resumen', 'fortalezas', 'alertas', 'recomendaciones', 'nivelConfianza', 'fuentes', 'hallazgos', 'senalesEmocionales', 'temasRecurrentes', 'limitations'].filter(field => !(field in (v || {})));
+    // #region agent log
+    let forma: unknown = null;
+    try { forma = formatFailureShape(v); } catch { forma = { error: 'shape' }; }
+    const _dbgBody = JSON.stringify({sessionId:'6531f2',runId:'pre-fix',hypothesisId:'H1-H5',location:'ai-completion.ts:validateAnalysis',message:'analisis rechazado por tipo o rango',data:{faltan:fields,forma},timestamp:Date.now()});
+    console.error('[debug-6531f2]', _dbgBody);
+    try { fs.appendFileSync(DEBUG_LOG_TEMP.replace('2d2e45', '6531f2'), _dbgBody + '\n'); } catch { /* la consola y el ingest siguen */ }
+    fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6531f2'},body:_dbgBody}).catch(()=>{});
+    // #endregion
     throw new AIRequestError('AI_FORMAT', 'El proveedor devolvió un análisis incompleto o con formato inválido. Volvé a intentar.', 502, fields.length ? `Faltan campos requeridos: ${fields.join(', ')}.` : 'Uno o más campos no tienen el tipo o rango esperado.');
   }
-  return { resumen: v.resumen, fortalezas: v.fortalezas, alertas: v.alertas, recomendaciones: v.recomendaciones, nivelConfianza: v.nivelConfianza, fuentes: v.fuentes, hallazgos: v.hallazgos, senalesEmocionales: v.senalesEmocionales || [], temasRecurrentes: v.temasRecurrentes || [], limitations: v.limitations, accionesContextuales: v.accionesContextuales || [] };
+  return { resumen: v.resumen, fortalezas: v.fortalezas, alertas: v.alertas, recomendaciones: v.recomendaciones, nivelConfianza: v.nivelConfianza, fuentes: v.fuentes, hallazgos: v.hallazgos, senalesEmocionales: Array.isArray(v.senalesEmocionales) ? v.senalesEmocionales : [], temasRecurrentes: Array.isArray(v.temasRecurrentes) ? v.temasRecurrentes : [], limitations: v.limitations, accionesContextuales: Array.isArray(v.accionesContextuales) ? v.accionesContextuales : [] };
 }
 
 export const QUALITATIVE_ANALYSIS_INSTRUCTIONS = 'Las respuestas cualitativas del campo qualitative.responses son parte obligatoria del análisis. Compará respuestas entre participantes y agrupá expresiones semánticamente similares aunque usen palabras distintas. Devolvé senalesEmocionales y temasRecurrentes; usá arrays vacíos cuando no haya evidencia suficiente. Cada tema recurrente requiere al menos 2 respuestas distintas, su frecuencia debe coincidir con la cantidad de respuestas respaldatorias y evidenciaIds debe contener sus IDs exactos. Las señales emocionales son tono agregado expresado en los textos, no diagnóstico de personas, salud mental ni personalidad. No muestres comentarios textuales individuales ni identifiques participantes; toda señal requiere revisión humana.';

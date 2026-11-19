@@ -1,5 +1,6 @@
 import { Usuario } from '../models/Usuario';
 import { plainRecord } from './mongoose-result';
+import { guardValue } from '../domain/persisted-schemas';
 import { getLocal, isLocalStorage, listLocal, localId, localNow, saveLocal } from '../storage/local-store';
 
 export interface UserRecord {
@@ -28,12 +29,12 @@ class JsonUserRepository implements UserRepository {
 }
 
 class MongoUserRepository implements UserRepository {
-  async findById(id: string) { return plainRecord<UserRecord | null>(await Usuario.findById(id).lean()); }
+  async findById(id: string) { return guardValue('usuarios', plainRecord<UserRecord | null>(await Usuario.findById(id).lean())); }
   async count() { return Usuario.countDocuments(); }
   async findByEmail(email: string) {
-    return plainRecord<UserRecord | null>(await Usuario.findOne({ email: email.trim() }).collation({ locale: 'en', strength: 2 }).lean());
+    return guardValue('usuarios', plainRecord<UserRecord | null>(await Usuario.findOne({ email: email.trim() }).collation({ locale: 'en', strength: 2 }).lean()));
   }
-  async insert(record: NewUserRecord) { return plainRecord<UserRecord>(await new Usuario(record).save()); }
+  async insert(record: NewUserRecord) { return guardValue('usuarios', plainRecord<UserRecord>(await new Usuario(record).save())); }
 }
 
 export const userRepository = (): UserRepository => isLocalStorage() ? new JsonUserRepository() : new MongoUserRepository();
