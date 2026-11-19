@@ -1,4 +1,4 @@
-import { AI_CHECK_VERSION, AIRequestError, ANALYSIS_INSTRUCTIONS, QUALITATIVE_ANALYSIS_INSTRUCTIONS, asAIRequestError, debugAgentLog, requestCompletion, validateAnalysis } from './ai-completion';
+import { AI_CHECK_VERSION, AIRequestError, ANALYSIS_INSTRUCTIONS, QUALITATIVE_ANALYSIS_INSTRUCTIONS, asAIRequestError, requestCompletion, validateAnalysis } from './ai-completion';
 import { getEstadoActualDashboard } from './dashboard.service';
 import { getHistoricoPorEquipoYEvaluacion } from './historico.service';
 import { getProviderCredentials, saveProvider } from './ai-provider.service';
@@ -53,8 +53,6 @@ const fuentesLegibles = (fuentes: string[], indicadores: Array<{ id: string; tex
 export const generateAnalysis = async (userId: string, input: {
   instanciaId: string; includeHistorico?: boolean;
 }) => {
-  let fase = 'inicio';
-  debugAgentLog({runId:'pre-fix',hypothesisId:'B',location:'ai-analysis.service.ts:generateAnalysis',message:'inicio de lectura',data:{fase,instanciaId:input.instanciaId}});
   // Get user's budget preset and concrete limits
   const { getAISettings } = await import('./ai-settings.service');
   const settings = await getAISettings(userId);
@@ -125,8 +123,6 @@ export const generateAnalysis = async (userId: string, input: {
   const safeTeamContext = teamContext.items.map(item => ({ ...item, title: redactText(item.title), content: redactText(item.content), source: item.source ? redactText(item.source) : undefined }));
   const externalContext = { ...context, historicalMemory, teamContext: { items: safeTeamContext, omittedCount: teamContext.omittedCount, characterCount: teamContext.characterCount }, limitations: [...context.limitations, ...(teamContext.omittedCount ? ['Se omitieron elementos de contexto del equipo por presupuesto.'] : []), ...(historicalMemory.omittedCount ? [`Se omitieron ${historicalMemory.omittedCount} antecedentes por límite de contexto; no asumir que no existen.`] : [])] };
   const datasetHash = hashContext(externalContext as any);
-  fase = 'antes-completion';
-  debugAgentLog({runId:'pre-fix',hypothesisId:'B',location:'ai-analysis.service.ts:generateAnalysis',message:'contexto listo, llama al proveedor',data:{fase,indicadores:context.quantitative.indicators.length,cualitativos:context.qualitative.responses.length,kind:provider.kind,model:provider.modelName}});
   let result: any;
   try {
     const crudo = await requestCompletion(provider.endpoint, provider.modelName, getProviderCredentials(provider), [
@@ -143,25 +139,15 @@ export const generateAnalysis = async (userId: string, input: {
     provider.status = 'active';
     provider.checkVersion = AI_CHECK_VERSION;
   } catch (error) {
-    const _fallo = error as { name?: string; message?: string; code?: string };
-    debugAgentLog({runId:'pre-fix',hypothesisId:'C',location:'ai-analysis.service.ts:generateAnalysis',message:'fallo dentro del intento de lectura',data:{fase,name:_fallo?.name,code:_fallo?.code,isAI:error instanceof AIRequestError,aiCode:error instanceof AIRequestError ? error.code : undefined,message:typeof _fallo?.message==='string'?_fallo.message.slice(0,240):undefined}});
     const known = asAIRequestError(error);
     if (!(known && known.code === 'AI_PROMPT_ENCODING')) {
       provider.status = 'invalid';
       provider.checkVersion = AI_CHECK_VERSION;
-      try {
-        await saveProvider(provider);
-      } catch (saveError) {
-        const _guardado = saveError as { name?: string; message?: string; code?: string };
-        debugAgentLog({runId:'pre-fix',hypothesisId:'C',location:'ai-analysis.service.ts:saveProvider',message:'guardar proveedor invalido lanzo otro error',data:{fase,name:_guardado?.name,code:_guardado?.code,message:typeof _guardado?.message==='string'?_guardado.message.slice(0,240):undefined}});
-        throw saveError;
-      }
+      await saveProvider(provider);
     }
     registrarError('ia', known || error, { accion: 'lectura' });
     throw known || error;
   }
-  fase = 'validado';
-  debugAgentLog({runId:'pre-fix',hypothesisId:'E',location:'ai-analysis.service.ts:generateAnalysis',message:'analisis validado',data:{fase,hallazgos:Array.isArray(result?.hallazgos)?result.hallazgos.length:null}});
   const evidenceIds = new Set([
     ...context.quantitative.indicators.map(item => item.id),
     ...context.quantitative.sections.map(item => item.id),
@@ -208,8 +194,6 @@ export const generateAnalysis = async (userId: string, input: {
       }
     }
   }
-  fase = 'persistir';
-  debugAgentLog({runId:'pre-fix',hypothesisId:'E',location:'ai-analysis.service.ts:generateAnalysis',message:'antes de guardar la lectura',data:{fase,tieneTono:Boolean(result?.tono)}});
   const snapshot = { indiceGlobal: current.privacidad?.protegido || !current.indicadores.some(item => (item.n || 0) > 0) ? null : current.indiceGlobal, participacion: current.participacion };
   const saved = await featureRepository('aiAnalyses').insert(newFeature('aiAnalyses', { userId, providerId: provider._id, instanciaId: input.instanciaId, snapshot, historicalMemory,
     equipoId, evaluacionId, providerKind: provider.kind,

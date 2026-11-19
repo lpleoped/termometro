@@ -407,9 +407,6 @@ function AbrirRonda({
       setAlcance('equipo');
       setEvaluacionId(evaluacionElegida);
       setCantidad(cantidadElegida);
-      // #region agent log
-      fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a328a'},body:JSON.stringify({sessionId:'1a328a',runId:'post-fix',hypothesisId:'G',location:'PublicarEvaluacion.tsx:cargar',message:'formulario al abrir',data:{equipoPedido:Boolean(equipoPedido),equipoElegido:Boolean(equipoElegido),miembros:equiposCargados.find((equipo)=>equipo.id===equipoElegido)?.miembros??null,evaluacionPedida:Boolean(evaluacionPedida),evaluacionElegida:Boolean(evaluacionElegida),cantidad:cantidadElegida,cuestionarios:cuestionariosCargados.length,host:window.location.host},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
     } catch {
       setEquipos([]);
       setCuestionarios([]);
@@ -453,9 +450,6 @@ function AbrirRonda({
     setErrorApertura(false);
     setConfirmarRed(false);
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a328a'},body:JSON.stringify({sessionId:'1a328a',runId:'post-fix',hypothesisId:'F',location:'PublicarEvaluacion.tsx:publicar',message:'ronda a abrir',data:{alcance:alcanceAPublicar,tieneEquipo:Boolean(equipoAPublicar),desdeEquipo,equipoAPublicar:equipoAPublicar||null,tieneCuestionario:Boolean(evaluacionId),cantidad,modoRespuesta,minimoAnonimato},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       const creada = await crearInstancia({
         ...(equipoAPublicar ? { equipoId: equipoAPublicar } : {}),
         alcance: alcanceAPublicar,

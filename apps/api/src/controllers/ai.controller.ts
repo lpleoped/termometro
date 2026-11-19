@@ -42,20 +42,12 @@ export const deleteAIProvider = async (req: AuthRequest, res: Response) => {
 export const postAIAnalysis = async (req: AuthRequest, res: Response) => {
   try {
     const { instanciaId, includeHistorico } = req.body;
-    // #region agent log
-    const { debugAgentLog } = await import('../services/ai-completion');
-    debugAgentLog({ runId: 'pre-fix', hypothesisId: 'F', location: 'ai.controller.ts:postAIAnalysis', message: 'entrada al endpoint de lectura', data: { instanciaId: typeof instanciaId === 'string' ? instanciaId.slice(0, 40) : typeof instanciaId, includeHistorico, userPresent: Boolean(req.user?.id) } });
-    // #endregion
     if (!validRecordId(instanciaId) || (includeHistorico !== undefined && typeof includeHistorico !== 'boolean')) return res.status(400).json({ error: 'Elegí una ronda válida.' });
     const result = await generateAnalysis(userId(req), { instanciaId, includeHistorico });
     res.json(result);
   } catch (error: unknown) {
     const issue = aiError(error);
     registrarError('ia', issue, { accion: 'lectura' });
-    // #region agent log
-    const { debugAgentLog } = await import('../services/ai-completion');
-    debugAgentLog({ runId: 'pre-fix', hypothesisId: 'F', location: 'ai.controller.ts:postAIAnalysis', message: 'respuesta de error al cliente', data: { code: issue.code, status: issue.status, message: issue.message.slice(0, 160) } });
-    // #endregion
     res.status(issue.status).json({ error: issue.message, code: issue.code, ...(issue.diagnostic ? { diagnostic: issue.diagnostic } : {}) });
   }
 };

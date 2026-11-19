@@ -7,7 +7,8 @@ export interface DireccionLan {
   interfaceName: string;
 }
 
-const INTERFAZ_VIRTUAL = /^(vEthernet|docker|wsl|vmnet|vboxnet|utun|tun|tap|br-|lo)/i;
+// `lo` solo nombra al loopback (lo, lo0). Un prefijo suelto también descartaría "Local Area Connection".
+const INTERFAZ_VIRTUAL = /^(?:vEthernet|docker|wsl|vmnet|vboxnet|utun|tun|tap|br-|lo\d*$|loopback)/i;
 
 export function listarDireccionesLan(): DireccionLan[] {
   const addresses: DireccionLan[] = [];

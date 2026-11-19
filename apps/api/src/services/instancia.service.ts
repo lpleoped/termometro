@@ -193,11 +193,5 @@ export const listarInstanciasPorEquipoService = async (equipoId: string, userId:
   }
 
   const resultado = Array.from(instanciasMap.values());
-  // #region agent log
-  fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b4c3d6'},body:JSON.stringify({sessionId:'b4c3d6',runId:'pre-fix',hypothesisId:'A',location:'instancia.service.ts:listar',message:'resultado del listado de rondas',data:{crudas:instancias.length,validas:resultado.length,lanzaVacio:resultado.length===0},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  // #region agent log
-  fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b4c3d6'},body:JSON.stringify({sessionId:'b4c3d6',runId:'post-fix',hypothesisId:'A',location:'instancia.service.ts:listar',message:'el listado se devuelve',data:{devuelve:resultado.length},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   return resultado;
 };

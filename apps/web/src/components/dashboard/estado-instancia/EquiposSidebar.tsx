@@ -61,15 +61,9 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
       if (!id || cancelado) return;
       setEquipoExpandido(id);
       return api.get('/instancias', { params: { equipoId: id, estado: 'activa' } }).then((rounds) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b4c3d6'},body:JSON.stringify({sessionId:'b4c3d6',runId:'pre-fix',hypothesisId:'E',location:'EquiposSidebar.tsx:efecto',message:'listado automatico ok',data:{status:rounds.status,esArray:Array.isArray(rounds.data),cantidad:Array.isArray(rounds.data)?rounds.data.length:null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (!cancelado && Array.isArray(rounds.data)) setInstanciasPorEquipo((prev) => ({ ...prev, [id]: rounds.data.map((round: any) => ({ ...round, id: round._id || round.id })) }));
       });
-    }).catch((error) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b4c3d6'},body:JSON.stringify({sessionId:'b4c3d6',runId:'pre-fix',hypothesisId:'C',location:'EquiposSidebar.tsx:efecto',message:'efecto de ronda seleccionada fallo',data:{status:error?.response?.status??null,apiError:typeof error?.response?.data?.error==='string'?error.response.data.error.slice(0,160):null,url:error?.config?.url??null},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+    }).catch(() => {
       if (!cancelado) {
         setReintentoRondas(null);
         setErrorRondas('No pudimos cargar las rondas.');
@@ -115,9 +109,6 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
         setReintentoRondas(null);
         setEquipoExpandido(equipoId);
         const res = await api.get(`/instancias?equipoId=${equipoId}&estado=activa`);
-        // #region agent log
-        fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b4c3d6'},body:JSON.stringify({sessionId:'b4c3d6',runId:'pre-fix',hypothesisId:'E',location:'EquiposSidebar.tsx:click',message:'listado al elegir equipo ok',data:{status:res.status,esArray:Array.isArray(res.data),cantidad:Array.isArray(res.data)?res.data.length:null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (!res.data || !Array.isArray(res.data)) {
           setInstanciasPorEquipo(prev => ({ ...prev, [equipoId]: [] }));
           return;
@@ -136,10 +127,7 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
         });
         
         setInstanciasPorEquipo(prev => ({ ...prev, [equipoId]: instanciasOrdenadas }));
-      } catch (error: any) {
-        // #region agent log
-        fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b4c3d6'},body:JSON.stringify({sessionId:'b4c3d6',runId:'pre-fix',hypothesisId:'C',location:'EquiposSidebar.tsx:click',message:'elegir equipo fallo',data:{status:error?.response?.status??null,apiError:typeof error?.response?.data?.error==='string'?error.response.data.error.slice(0,160):null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
+      } catch {
         setReintentoRondas(equipoId);
         setErrorRondas('No pudimos cargar las rondas.');
       } finally {
