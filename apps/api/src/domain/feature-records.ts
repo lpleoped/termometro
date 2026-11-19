@@ -44,7 +44,16 @@ export interface IAIAnalysis extends FeatureRecord {
     senalesEmocionales: Array<{ etiqueta: string; direccion: string; intensidad: number; confianza: number; interpretacion: string; evidenciaIds: string[] }>;
     temasRecurrentes: Array<{ tema: string; frecuencia: number; interpretacion: string; evidenciaIds: string[] }>;
     accionesContextuales?: Array<{ titulo: string; descripcion: string; prioridad: string; alcance: string; hallazgo?: string; contextoAplicado?: string[]; esCondicionPrevia?: boolean; requiereValidacion: boolean; ownerRole: string; horizon: string; successMetric: string; checkInQuestion: string; evidenceIds: string[] }>;
+    tono?: {
+      promptVersion: string;
+      oracion: string;
+      proporcion: { alivio: number; mezcla: number; tension: number };
+      marcas: Array<{ etiqueta: string; intensidad: number; direccion: string }>;
+      frases: Array<{ evidenciaId: string; direccion: string }>;
+      temas: Array<{ tema: string; interpretacion: string; evidenciaIds: string[] }>;
+    };
   };
+  propuestasOmitidas?: number[];
   creadoEn: Date;
 }
 
@@ -70,11 +79,12 @@ export interface IAccionPlan extends FeatureRecord {
   verificadaEn?: Date;
   checkIns: Array<{ horizonte: HorizonteAccion; venceEn: Date; estado: 'pendiente' | 'completado'; nota?: string; completadoEn?: Date; resultado?: { indiceAnterior?: number; indicePosterior?: number; delta?: number } }>;
   resultado?: { indiceAnterior?: number; indicePosterior?: number; delta?: number; medidoEn?: Date; interpretacion?: string };
+  veredictos?: Array<{ indicadorId: string; texto?: string; valorAdopcion?: number; valorPosterior?: number; delta?: number; veredicto: 'sin_medicion_posterior' | 'todavia_es_pronto' | 'hay_una_senal' | 'no_se_movio' | 'se_movio_en_contra' }>;
   integraciones?: Array<{ provider: 'slack' | 'monday'; externalId?: string; url?: string; status: 'published' | 'error'; error?: string; publishedAt: Date }>;
 }
 
 export interface ITeamContextItem extends FeatureRecord {
-  teamId: string; type: TeamContextType; title: string; content: string; source?: string;
+  teamId: string; type: TeamContextType; title: string; content: string; source?: string; learningKey?: string;
   scope: TeamContextScope; status: TeamContextStatus; confidence: number; importance: TeamContextImportance; sensitivity: TeamContextSensitivity; influence: TeamContextInfluence; validFrom?: Date; validUntil?: Date;
   createdBy: string; updatedBy: string; version: number; createdAt: Date; updatedAt: Date;
 }
@@ -103,8 +113,18 @@ export interface AISettingsRecord extends FeatureRecord {
   defaultProviderId: string | null;
   budgetPreset?: 'pequeño' | 'estándar' | 'grande' | 'muy-grande' | 'sin-límite';
 }
+export interface IAIUsage extends FeatureRecord {
+  userId: string;
+  schemaVersion: number;
+  motivo: 'prueba' | 'cuestionario' | 'lectura' | 'tono';
+  modelo: string;
+  tokensEntrada: number | null;
+  tokensSalida: number | null;
+  costoEstimado: number | null;
+  fecha: Date;
+}
 export interface FeatureRecords {
- aiProviders: IAIProvider; aiSettings: AISettingsRecord; aiAnalyses: IAIAnalysis;
+ aiProviders: IAIProvider; aiSettings: AISettingsRecord; aiAnalyses: IAIAnalysis; aiUsages: IAIUsage;
  accionesPlan: IAccionPlan; teamContextItems: ITeamContextItem;
  integrationConnections: IIntegrationConnection; teamIntegrationSettings: ITeamIntegrationSettings;
 }

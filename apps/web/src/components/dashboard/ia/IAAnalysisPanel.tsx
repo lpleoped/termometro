@@ -39,7 +39,7 @@ function AnalysisContent({ instanciaId }: Props) {
     <p>Contrasta los indicadores y comentarios agregados con análisis anteriores, acciones aplicadas y resultados de seguimiento para ajustar las próximas propuestas.</p>
     {message && <div className="ia-notice ia-notice-error" role="alert">{message}</div>}
     {error && <div className="ia-notice ia-notice-error" role="alert">{error}</div>}
-    {settings && !settings.enabled && <div className="ia-notice"><strong>La IA está apagada.</strong><p className="mb-2">Podés consultar resultados anteriores. Para generar uno nuevo, activá la IA en la configuración general.</p><Link to="/backoffice/configuracion/ia">Abrir configuración general →</Link></div>}
+    {settings && !settings.enabled && <div className="ia-notice"><strong>La IA está apagada.</strong><p className="mb-2">Podés consultar resultados anteriores. Para generar uno nuevo, activá la IA en la configuración general.</p><Link className="btn btn-sm btn-outline-secondary" to="/backoffice/configuracion/ia">Abrir configuración</Link></div>}
     {settings?.enabled && <p className="ia-footnote mb-3">IA activada · Usa tu conexión predeterminada. Generar realiza una consulta al proveedor.</p>}
     {!settings && !message && <p role="status">Consultando disponibilidad de IA…</p>}
     <button className="btn btn-primary" disabled={!settings?.enabled || !settings.defaultProviderId || loading} onClick={generate}>{loading ? 'Generando análisis…' : analysis ? 'Generar nuevo análisis' : 'Generar análisis'}</button>

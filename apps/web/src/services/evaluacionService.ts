@@ -10,6 +10,7 @@ export interface Evaluacion {
   descripcion?: string;
   activo?: boolean;
   tipo?: string;
+  equipoId?: string;
   origenCuestionario?: 'manual' | 'ia';
   revisionHumanaAprobada?: boolean;
   secciones: Seccion[];
@@ -20,6 +21,7 @@ export const crearEvaluacion = async (payload: {
   titulo: string;
   descripcion?: string;
   tipo?: string;
+  equipoId?: string;
   origenCuestionario?: 'manual' | 'ia';
   revisionHumanaAprobada?: boolean;
   secciones: Seccion[];

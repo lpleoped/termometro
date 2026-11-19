@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
-import os from 'node:os';
 import { exec } from 'node:child_process';
 import http from 'node:http';
+import { authMiddleware, type AuthRequest } from '../middleware/auth.middleware';
+import { abrirRedLocal, direccionesParaCompartir } from '../network/red-local';
+import { registrarError } from '../observability/errores';
 
 const router = Router();
 
@@ -12,19 +14,9 @@ interface NetworkStatus {
   isDesktop: boolean;
 }
 
-function getLanAddress(): string | null {
-  const interfaces = os.networkInterfaces();
-  for (const [name, items] of Object.entries(interfaces)) {
-    // Skip virtual interfaces
-    if (/^(vEthernet|docker|wsl|vmnet|vboxnet|utun|tun|tap|br-)/i.test(name)) continue;
-    
-    for (const item of items || []) {
-      if (item.family === 'IPv4' && !item.internal && !item.address.startsWith('169.254.')) {
-        return item.address;
-      }
-    }
-  }
-  return null;
+async function getLanAddress(): Promise<string | null> {
+  const [preferida] = await direccionesParaCompartir();
+  return preferida?.address ?? null;
 }
 
 async function getNetworkProfile(): Promise<string> {
@@ -49,8 +41,7 @@ async function getNetworkProfile(): Promise<string> {
   });
 }
 
-async function checkLanHealth(): Promise<boolean> {
-  const lanAddress = getLanAddress();
+async function checkLanHealth(lanAddress: string | null): Promise<boolean> {
   if (!lanAddress) return false;
   
   const port = Number(process.env.PORT) || 3000;
@@ -68,6 +59,16 @@ async function checkLanHealth(): Promise<boolean> {
   });
 }
 
+router.post('/red-local', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const addresses = await abrirRedLocal(req.app);
+    res.json({ listening: 'lan', addresses });
+  } catch (error) {
+    registrarError('red', error, { accion: 'abrir' });
+    res.status(400).json({ error: error instanceof Error ? error.message : 'No se pudo abrir la encuesta en la red local.' });
+  }
+});
+
 router.get('/network-status', async (_req: Request, res: Response) => {
   // Only available in desktop mode
   if (process.env.TERMOMETRO_DESKTOP !== 'true') {
@@ -75,20 +76,22 @@ router.get('/network-status', async (_req: Request, res: Response) => {
   }
   
   try {
+    const lanAddress = await getLanAddress();
     const [profileType, lanHealthy] = await Promise.all([
       getNetworkProfile(),
-      checkLanHealth()
+      checkLanHealth(lanAddress),
     ]);
     
     const status: NetworkStatus = {
       profileType: profileType as NetworkStatus['profileType'],
       lanHealthy,
-      lanAddress: getLanAddress(),
+      lanAddress,
       isDesktop: true,
     };
     
     res.json(status);
   } catch (error) {
+    registrarError('red', error, { accion: 'estado' });
     res.status(500).json({ error: 'Failed to get network status' });
   }
 });

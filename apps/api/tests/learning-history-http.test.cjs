@@ -1,6 +1,7 @@
 // Real HTTP + Mongo; a unique disposable database, no production collections or paid AI calls.
 require('dotenv').config({ path: require('node:path').join(__dirname, '../.env'), quiet: true });
 process.env.JWT_SECRET = 'learning-history-test-only-secret-32-chars';
+process.env.STORAGE_DRIVER = 'mongo';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
@@ -37,6 +38,16 @@ test('HTTP: guardar → aplicar → seguir → contrastar y ajustar con IA e his
   providerService.getProviderCredentials = () => '';
   providerService.saveProvider = async (provider) => provider;
   completion.requestCompletion = async (_endpoint, _model, _credentials, messages) => {
+    if (String(messages[0]?.content || '').startsWith('Leé solo el tono')) {
+      const pedido = JSON.parse(messages.at(-1).content);
+      return {
+        oracion: 'La mayor parte de lo escrito suena a coordinación pendiente.',
+        proporcion: { alivio: 0, mezcla: 1, tension: 0 },
+        marcas: [{ etiqueta: 'incertidumbre', intensidad: 0.6, direccion: 'mixta' }],
+        frases: pedido.frases.map((frase) => ({ evidenciaId: frase.id, direccion: 'mezcla' })),
+        temas: [{ tema: 'Coordinación pendiente', interpretacion: 'Se repite la necesidad de coordinar.', evidenciaIds: pedido.frases.map((frase) => frase.id) }],
+      };
+    }
     sentContext = JSON.parse(messages.at(-1).content);
     const applied = sentContext.historicalMemory.items.find(item => item.type === 'action' && item.state === 'verificada');
     const evidence = invalidEvidence ? 'inventada' : applied?.id || 'p';
@@ -53,6 +64,9 @@ test('HTTP: guardar → aplicar → seguir → contrastar y ajustar con IA e his
     const first = await call('POST', '/ai/analyses', { instanciaId: round.id });
     assert.equal(first.status, 200, JSON.stringify(first.data));
     assert.equal(first.data.snapshot.indiceGlobal, 60);
+    assert.equal(first.data.tono.promptVersion, 'tone.v1');
+    assert.equal(first.data.tono.frases.length, 3);
+    assert.ok(first.data.tono.temas.every((tema) => tema.tema !== 'Comentarios'));
     const actionInput = { instanciaId: round.id, descripcion: 'Coordinar tareas adaptadas por el equipo.', ownerRole: 'Facilitación', horizon: '7d', successMetric: 'Menos bloqueos', checkInQuestion: '¿Qué cambió?', analisisId: first.data.id, propuestaIndice: 0 };
     const created = await call('POST', '/acciones', actionInput);
     assert.equal(created.status, 201, JSON.stringify(created.data));

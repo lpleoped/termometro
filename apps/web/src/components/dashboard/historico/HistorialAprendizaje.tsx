@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AIAnalysisResponse, HistoricoSeguimiento } from '@termometro/shared';
+import { elegirContraste } from '../../../domain/contraste-analisis';
 import SeguimientoAccion from '../plan/SeguimientoAccion';
 
 const date = (value?: string) => value ? new Date(value).toLocaleString('es-UY') : 'Fecha no registrada';
@@ -16,27 +17,39 @@ function AnalysisSnapshot({ analysis }: { analysis: AIAnalysisResponse }) {
   </article>;
 }
 
+function mismaMedicion(antes?: AIAnalysisResponse, despues?: AIAnalysisResponse): boolean {
+  return !!antes && !!despues && !!antes.instanciaId && antes.instanciaId === despues.instanciaId;
+}
+
 export default function HistorialAprendizaje({ rondas, instanciaId }: { rondas: HistoricoSeguimiento[]; instanciaId: string }) {
-  const analyses = rondas.flatMap(round => round.analisis).sort((a, b) => (a.creadoEn || '').localeCompare(b.creadoEn || '') || a.id.localeCompare(b.id));
-  const [beforeId, setBeforeId] = useState('');
-  const [afterId, setAfterId] = useState('');
-  const after = analyses.find(item => item.id === afterId) || analyses.filter(item => item.instanciaId === instanciaId).at(-1) || analyses.at(-1);
-  const afterIndex = analyses.findIndex(item => item.id === after?.id);
-  const before = analyses.find(item => item.id === beforeId) || analyses[Math.max(0, afterIndex - 1)];
+  const [referenciaId, setReferenciaId] = useState('');
+  const [lecturaId, setLecturaId] = useState('');
+  const { hayRondaAnterior, lectura, referencia, versiones, opciones } = elegirContraste(rondas, instanciaId, lecturaId, referenciaId);
+  const mostrarPar = hayRondaAnterior && !!lectura && !!referencia && lectura.id !== referencia.id;
+  const mismaRonda = mismaMedicion(referencia, lectura);
   return <section aria-labelledby="historial-aprendizaje">
     <h3 id="historial-aprendizaje" className="h4">Análisis, acciones y aprendizajes</h3>
-    <p>Contrastá las interpretaciones de IA con lo que se aplicó y los resultados registrados. El histórico conserva todas las versiones de análisis.</p>
-    {analyses.length === 0 ? <p className="text-muted">Todavía no hay análisis de IA guardados para estas rondas.</p> : <>
-      <div className="row g-3 mb-3">
-        <label className="col-md-6 form-label">Análisis de referencia<select className="form-select" value={before?.id || ''} onChange={e => setBeforeId(e.target.value)}>{analyses.map(item => <option key={item.id} value={item.id}>{label(item)}</option>)}</select></label>
-        <label className="col-md-6 form-label">Análisis a contrastar<select className="form-select" value={after?.id || ''} onChange={e => setAfterId(e.target.value)}>{analyses.map(item => <option key={item.id} value={item.id}>{label(item)}</option>)}</select></label>
-      </div>
-      {before && after && before.id !== after.id && <div className="alert alert-info">
-        {before.snapshot?.indiceGlobal != null && after.snapshot?.indiceGlobal != null && <p className="mb-1">Cambio entre los datos guardados: {Math.round((after.snapshot.indiceGlobal - before.snapshot.indiceGlobal) * 100) / 100} puntos ({before.snapshot.indiceGlobal} → {after.snapshot.indiceGlobal}).</p>}
-        {before.metadata?.datasetHash === after.metadata?.datasetHash && <p className="mb-1">Ambos análisis usaron el mismo contexto: una diferencia de redacción no demuestra un cambio en el equipo.</p>}
-        <p className="mb-0">Compará también participación, fechas y acciones aplicadas. Que una alerta no se repita no significa que esté resuelta.</p>
+    <p>{opciones.length > 0 && !hayRondaAnterior
+      ? 'Todavía no hay una ronda anterior con análisis para contrastar. El histórico conserva esta lectura para la medición siguiente.'
+      : 'Contrastá las interpretaciones de IA con lo que se aplicó y los resultados registrados. El histórico conserva todas las versiones de análisis.'}</p>
+    {opciones.length === 0 ? <p className="text-muted">Todavía no hay análisis de IA guardados para estas rondas.</p> : <>
+      {hayRondaAnterior ? <div className="row g-3 mb-3">
+        <label className="col-md-6 form-label">Análisis de referencia<select className="form-select" value={referencia?.id || ''} onChange={e => setReferenciaId(e.target.value)}>{opciones.map(item => <option key={item.id} value={item.id}>{label(item)}</option>)}</select></label>
+        <label className="col-md-6 form-label">Análisis a contrastar<select className="form-select" value={lectura?.id || ''} onChange={e => setLecturaId(e.target.value)}>{opciones.map(item => <option key={item.id} value={item.id}>{label(item)}</option>)}</select></label>
+      </div> : versiones.length > 1 && <>
+        <label className="form-label">Versión guardada<select className="form-select" value={lectura?.id || ''} onChange={e => setLecturaId(e.target.value)}>{versiones.map(item => <option key={item.id} value={item.id}>{label(item)}</option>)}</select></label>
+        <p className="form-text">Hay {versiones.length} versiones de esta ronda. Una diferencia de redacción no muestra un cambio del equipo.</p>
+      </>}
+      {mostrarPar && <div className="alert alert-info">
+        {mismaRonda
+          ? <p className="mb-0">Las dos versiones son de la misma ronda. Una diferencia de redacción no muestra un cambio del equipo.</p>
+          : <>
+            {referencia.snapshot?.indiceGlobal != null && lectura.snapshot?.indiceGlobal != null && <p className="mb-1">Cambio entre los datos guardados: {Math.round((lectura.snapshot.indiceGlobal - referencia.snapshot.indiceGlobal) * 100) / 100} puntos ({referencia.snapshot.indiceGlobal} → {lectura.snapshot.indiceGlobal}).</p>}
+            {referencia.metadata?.datasetHash === lectura.metadata?.datasetHash && <p className="mb-1">Ambos análisis usaron el mismo contexto: una diferencia de redacción no demuestra un cambio en el equipo.</p>}
+            <p className="mb-0">Compará también participación, fechas y acciones aplicadas. Que una alerta no se repita no significa que esté resuelta.</p>
+          </>}
       </div>}
-      <div className="row g-3 mb-4">{before && before.id !== after?.id && <div className="col-lg-6"><AnalysisSnapshot analysis={before} /></div>}{after && <div className={before?.id !== after.id ? 'col-lg-6' : 'col-12'}><AnalysisSnapshot analysis={after} /></div>}</div>
+      <div className="row g-3 mb-4">{mostrarPar && <div className="col-lg-6"><AnalysisSnapshot analysis={referencia} /></div>}{lectura && <div className={mostrarPar ? 'col-lg-6' : 'col-12'}><AnalysisSnapshot analysis={lectura} /></div>}</div>
     </>}
     <div className="d-grid gap-3">{[...rondas].reverse().map(round => <details className="border rounded p-3" key={round.instanciaId} open={round.instanciaId === instanciaId}>
       <summary className="fw-semibold">Ronda del {date(round.activadoEn)} · {round.analisis.length} análisis · {round.acciones.length} acciones</summary>

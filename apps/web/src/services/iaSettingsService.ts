@@ -19,5 +19,5 @@ export interface CuestionarioGenerado {
   secciones: Array<{ titulo: string; ponderacion: number; indicadores: Array<{ id: string; texto: string; tipo: 'cuantitativo' | 'cualitativo'; direccion: 'positiva' | 'negativa' }> }>;
 }
 
-export const generarCuestionarioIA = async (role: string, request: string) =>
-  (await api.post<{ prompt: string; cuestionario: CuestionarioGenerado }>('/ai/questionnaires/generate', { role, request })).data;
+export const generarCuestionarioIA = async (role: string, request: string, equipoId?: string) =>
+  (await api.post<{ prompt: string; cuestionario: CuestionarioGenerado }>('/ai/questionnaires/generate', { role, request, ...(equipoId ? { equipoId } : {}) })).data;

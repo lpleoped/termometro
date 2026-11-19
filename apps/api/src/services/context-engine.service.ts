@@ -34,7 +34,7 @@ export interface TeamContextSelection {
   characterCount: number;
 }
 
-export const selectContextCandidates = (candidates: Array<any>, now = new Date()): TeamContextSelection => {
+export const selectContextCandidates = (candidates: Array<any>, now = new Date(), maxContextChars = getMaxContextChars()): TeamContextSelection => {
   const eligible = candidates.filter(item =>
     (item.status === 'active' || item.status === 'review') &&
     (!item.validFrom || new Date(item.validFrom) <= now) &&
@@ -42,7 +42,6 @@ export const selectContextCandidates = (candidates: Array<any>, now = new Date()
   eligible.sort((a, b) => ((importancePriority[b.importance] || 0) + (influencePriority[b.influence] || 0)) - ((importancePriority[a.importance] || 0) + (influencePriority[a.influence] || 0)) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   const selected: SelectedTeamContextItem[] = [];
   let characterCount = 0;
-  const maxContextChars = getMaxContextChars();
   for (const item of eligible) {
     if (selected.length >= MAX_ITEMS) break;
     const projected = characterCount + item.title.length + item.content.length;
@@ -57,7 +56,7 @@ export const selectContextCandidates = (candidates: Array<any>, now = new Date()
  * Compila contexto gobernado para una tarea concreta. No envía documentos
  * completos ni elementos obsoletos: el presupuesto es parte del contrato.
  */
-export const selectTeamContext = async (teamId: string, now = new Date()): Promise<TeamContextSelection> => {
+export const selectTeamContext = async (teamId: string, now = new Date(), maxContextChars?: number): Promise<TeamContextSelection> => {
   const candidates = await featureRepository('teamContextItems').list({ teamId });
-  return selectContextCandidates(candidates, now);
+  return selectContextCandidates(candidates, now, maxContextChars);
 };

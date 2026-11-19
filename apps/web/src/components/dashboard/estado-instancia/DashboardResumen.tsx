@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 interface Props {
   valor: number;
   participacion: {
@@ -46,31 +48,32 @@ const DashboardResumen = ({ valor, participacion, lectura }: Props) => {
   const participacionBaja = recibida > 0 && porcentaje < 50;
   const participacionExcesiva = recibida > esperada;
 
+  const tono = { '--resumen-estado': estadoActual.color } as CSSProperties;
+
   return (
-    <section className={`dashboard-resumen resumen-${estadoClave}`} aria-label="Resumen del índice de clima">
-      <div className="resumen-header p-4">
-        <div className="d-flex align-items-center justify-content-between">
-          <div className="resumen-content">
-            <h6 className="mb-2 fw-semibold opacity-90">Índice</h6>
-            <div className="d-flex align-items-baseline gap-2 mb-2">
-              <span className="display-6 fw-bold">{valor}</span>
-              <span className="fs-6 opacity-90">/ 100</span>
-            </div>
-            <p className="mb-0 fs-6 opacity-90">
-              El índice del equipo es <strong>{estadoActual.nombre}</strong>.
-            </p>
-            {lectura && (
-              <p className="mb-0 mt-2 fs-6 opacity-90">
-                {lectura}
-              </p>
-            )}
-          </div>
-        </div>
+    <section
+      className={`dashboard-resumen resumen-${estadoClave}`}
+      aria-label="Resumen del índice de clima"
+      style={tono}
+    >
+      <div className="resumen-header">
+        <p className="resumen-kicker">Índice</p>
+        <p className="resumen-cifra">
+          <span className="resumen-numero">{valor}</span>
+          <span className="resumen-techo">/ 100</span>
+        </p>
+        <p className="resumen-semaforo">{estadoActual.nombre}</p>
       </div>
+      {lectura ? <p className="resumen-lectura">{lectura}</p> : null}
 
       {(participacionBaja || participacionExcesiva) && (
         <div className="resumen-alert px-4 py-3" role="status">
-          {participacionBaja ? 'La participación todavía es baja.' : 'Hay más respuestas que personas esperadas.'}
+          <p className="mb-1 fw-semibold">Validación de participación</p>
+          <p className="mb-0">
+            {participacionBaja
+              ? `Respondieron ${recibida} de ${esperada}, por debajo de la mitad. El índice sale de esas respuestas.`
+              : `La ronda espera ${esperada === 1 ? '1 persona' : `${esperada} personas`} y guardó ${recibida} respuestas. El índice las usa todas, también las que pasan de esa cantidad. Otro envío desde el mismo link se guarda como una respuesta nueva.`}
+          </p>
         </div>
       )}
     </section>

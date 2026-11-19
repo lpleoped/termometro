@@ -2,16 +2,18 @@
 
 ## Origen de la idea
 
-La idea y el desarrollo de este producto corresponden al autor, en **2024–2025**, como exploración e ingeniería en **tiempo personal**. En **2025** fue presentada en IBM como **iniciativa personal** frente a más de 100 personas, como proyecto de **IA aplicada en desarrollo de software**.
+La idea y la primera implementación de este producto son de **2024**, en otro repositorio, como exploración e ingeniería en **tiempo personal**. Ese trabajo usó herramientas de IA e IDEs con IA integrada de uso exclusivamente personal.
 
-Hoy esa línea se publica como producto **open source** en limpio: **Termómetro de Equipo**, centrado en el diagnóstico de clima / estado de equipos (evaluaciones ponderadas, índice tipo termómetro, participación, histórico, plan de acción).
+La idea y la implementación se mostraron ante un sector de LATAM de la empresa con la que regía el contrato de ese período.
 
-## Titularidad (doble atribución)
+Hoy esa línea se publica como producto **open source**: **Termómetro de Equipo**, centrado en el diagnóstico de clima / estado de equipos (evaluaciones ponderadas, índice tipo termómetro, participación, histórico, plan de acción). El tono de lo escrito es una señal agregada: describe al conjunto y queda para revisión humana.
 
-1. **Autoría e idea:** trabajo creativo, idea, creación, presentación (2025) y desarrollo se reconocen como del autor (iniciativa y tiempo personal, 2024–2025).
-2. **Marco contractual IBM:** por el contrato / marco laboral con **IBM**, IBM también es dueño / cotitular a efectos de propiedad intelectual del trabajo, **más allá** de que la idea y el proyecto se hayan realizado en tiempo personal.
+## Titularidad
 
-Ambas verdades deben coexistir en `LICENSE`, `NOTICE`, `COPYRIGHT` y en este documento. Ninguna publicación debe borrar al autor ni a IBM.
+1. **Autoría:** idea, creación y desarrollo se reconocen como de Leonardo Pedreira, en tiempo personal, en 2024.
+2. **Marco contractual:** bajo el contrato vigente en ese período, el código realizado pertenecía a esa empresa.
+
+Ambas cosas conviven en `LICENSE`, `NOTICE`, `COPYRIGHT` y en este documento. El aviso de copyright público nombra a Leonardo Pedreira (2024–2026).
 
 ## Repositorios de referencia (solo archivo)
 
@@ -24,12 +26,8 @@ Este monorepo es la línea de producto actual e independiente.
 
 ## Publicación open source
 
-El **CTO de IBM Consulting** autorizó por escrito que Termómetro de Equipo se publique como open source. Texto operativo de ese permiso:
+El CTO de esa empresa autorizó la publicación open source, para que la idea y la implementación mostradas ante ese sector de LATAM pudieran tener valor.
 
-> Sobre el termómetro, me parece bárbaro que lo hagas open source, sin problema. Lo hiciste en tu tiempo, es tuyo, no hay competencia, conflicto, etc con que lo hagas open.
->
-> Sobre esto (mostrar un video de tu presentación blureando contenido confidencial), mientras no haya gente, clientes, ni nada que nos pueda comprometer como empresa no veo problema.
+El material público sigue bajo la misma condición: sin personas reales, sin clientes y sin nada que comprometa a la empresa.
 
-Ese material de la presentación ya fue validado por el mismo CTO. Un material nuevo sigue bajo la misma condición: sin gente, sin clientes y sin nada que comprometa a la empresa.
-
-La licencia de este árbol es **Apache-2.0**. El permiso autoriza hacerlo open source y no nombra otra licencia. Siguen las dos atribuciones de `NOTICE` y `COPYRIGHT`: Leonardo Pedreira e IBM. Esto no presenta el producto como producto oficial de IBM.
+La licencia de este árbol es **Apache-2.0**. El aviso de copyright nombra a Leonardo Pedreira (2024–2026). Este repositorio no se presenta como producto oficial de esa empresa.

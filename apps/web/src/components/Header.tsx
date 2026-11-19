@@ -2,6 +2,21 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useState, useEffect } from 'react'
 import logo from '../assets/termometro-logo.png'
+import { destinoDePaso, pasosVisibles, type PasoVisible } from '../domain/pasosEncabezado'
+import './InfoAyuda.css'
+import { useRecorridoEncabezado } from './useRecorridoEncabezado'
+
+const ULTIMA_RONDA = 'termometro-ultima-ronda'
+
+function SignoAyuda() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="8.25" />
+      <path d="M10 9.15v5.1" />
+      <circle className="info-ayuda-punto" cx="10" cy="6.15" r="0.85" />
+    </svg>
+  )
+}
 
 export default function Header() {
   const { isAuthenticated, logout } = useAuth()
@@ -9,8 +24,8 @@ export default function Header() {
   const location = useLocation()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { listo, yaMide, paso, equipoId } = useRecorridoEncabezado()
 
-  // Detectar scroll para cambiar el estilo del navbar
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20)
@@ -25,89 +40,104 @@ export default function Header() {
     setIsMobileMenuOpen(false)
   }
 
-  const isActive = (path: string) => {
-    return location.pathname === path
-  }
+  const isActive = (path: string) => location.pathname === path.split('?')[0]
+  const ultimaRonda = typeof localStorage === 'undefined' ? '' : localStorage.getItem(ULTIMA_RONDA) || ''
+  const mostrarPasos = isAuthenticated && listo && !yaMide
+  const pasos: PasoVisible[] | null = mostrarPasos ? (pasosVisibles(paso) ?? pasosVisibles('crear-equipo')) : null
+  const navItems = !isAuthenticated ? [
+    { path: '/', label: 'Inicio' },
+    { path: '/login', label: 'Ingresar' },
+  ] : yaMide ? [
+    { path: '/backoffice/equipos', label: 'Equipos' },
+    { path: '/backoffice/consulta-evaluacion', label: 'Cuestionarios' },
+    { path: ultimaRonda ? `/backoffice/dashboard?instanciaId=${ultimaRonda}` : '/backoffice/dashboard', label: 'Resultados' },
+    { path: ultimaRonda ? `/backoffice/accionables?instanciaId=${ultimaRonda}` : '/backoffice/accionables', label: 'Accionables' },
+    { path: '/backoffice/configuracion', label: 'Configuración' },
+  ] : []
 
-  const navItems = [
-    { path: '/', label: 'Inicio', public: true },
-    { path: '/login', label: 'Ingresar', public: true, auth: false },
-    { path: '/backoffice/home', label: 'Panel', auth: true },
-    { path: '/backoffice/equipos', label: 'Equipos', auth: true },
-    { path: '/backoffice/consulta-evaluacion', label: 'Evaluaciones', auth: true },
-    { path: '/backoffice/publicar-evaluacion', label: 'Publicar', auth: true },
-    { path: '/backoffice/configuracion', label: 'Configuración', auth: true },
-  ]
-
-  const filteredNavItems = navItems.filter(item => {
-    if (item.path === '/login') return !isAuthenticated;
-    if (item.auth) return isAuthenticated;
-    return item.public && (item.auth === undefined || item.auth === false);
-  })
+  const hayMenu = Boolean(pasos) || navItems.length > 0
 
   return (
-    <nav className={`app-navbar navbar navbar-expand-lg fixed-top transition-all duration-300 ${
+    <nav className={`app-navbar navbar ${pasos ? 'navbar-expand-md app-navbar-recorrido' : 'navbar-expand-lg'} fixed-top ${
       isScrolled ? 'bg-white shadow-sm' : 'bg-white'
     }`}>
-      <div className="container">
-        {/* Logo y marca */}
-        <Link 
-          className="navbar-brand d-flex align-items-center text-decoration-none" 
-          to="/"
+      <div className={pasos ? 'container-fluid px-3' : 'container'}>
+        <Link
+          className="navbar-brand d-flex align-items-center text-decoration-none"
+          to={isAuthenticated ? '/backoffice/home' : '/'}
+          aria-label={isAuthenticated ? 'Ir al panel' : 'Termómetro'}
           onClick={() => setIsMobileMenuOpen(false)}
         >
-          <img 
-            src={logo} 
-            width="32" 
-            height="32" 
-            className="me-2" 
-            alt="Logo Termómetro" 
+          <img
+            src={logo}
+            width="40"
+            height="40"
+            className="brand-mark brand-mark-header me-2"
+            alt=""
           />
-        <span className="fw-semibold text-primary">Termómetro</span>
+          <span className="fw-semibold text-primary">Termómetro</span>
         </Link>
 
-        {/* Botón hamburguesa para móvil */}
-        <button
-          className={`navbar-toggler border-0 ${isMobileMenuOpen ? 'collapsed' : ''}`}
-          type="button"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-expanded={isMobileMenuOpen}
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
+        {hayMenu && (
+          <button
+            className="navbar-toggler border-0"
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-expanded={isMobileMenuOpen}
+            aria-label="Menú"
+          >
+            <span className="navbar-toggler-icon"></span>
+          </button>
+        )}
 
-        {/* Menú de navegación */}
         <div className={`collapse navbar-collapse ${isMobileMenuOpen ? 'show' : ''}`}>
-          <ul className="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
-            {filteredNavItems.map((item) => (
-              <li className="nav-item" key={item.path}>
-                <Link
-                  className={`nav-link px-3 py-2 mx-1 rounded ${
-                    isActive(item.path) 
-                      ? 'text-primary fw-medium bg-light' 
-                      : 'text-secondary'
-                  }`}
-                  to={item.path}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-            
-            {/* Botón de cerrar sesión */}
+          {pasos ? (
+            <ol className="pasos-recorrido" aria-label="Pasos">
+              {pasos.map((item) => (
+                <li key={item.id} className={`paso-${item.estado}`} aria-current={item.estado === 'actual' ? 'step' : undefined}>
+                  <Link to={destinoDePaso(item.id, equipoId)} onClick={() => setIsMobileMenuOpen(false)}>
+                    {item.nombre}
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <ul className="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+              {navItems.map((item) => (
+                <li className="nav-item" key={item.path}>
+                  <Link
+                    className={`nav-link px-3 py-2 mx-1 rounded ${
+                      isActive(item.path)
+                        ? 'text-primary fw-medium bg-light'
+                        : 'text-secondary'
+                    }`}
+                    to={item.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className={`cuenta-grupo ${pasos ? 'pasos-cuenta' : ''}`}>
+            <Link
+              className={`cuenta-ayuda ${location.pathname.startsWith('/ayuda') ? 'is-activa' : ''}`}
+              to="/ayuda"
+              state={{ from: `${location.pathname}${location.search}` }}
+              aria-label="Ayuda"
+              aria-current={location.pathname.startsWith('/ayuda') ? 'page' : undefined}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <SignoAyuda />
+            </Link>
             {isAuthenticated && (
-              <li className="nav-item ms-2">
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={handleLogout}
-                >
-                  Cerrar sesión
-                </button>
-              </li>
+              <button type="button" className="cuenta-salir" onClick={handleLogout}>
+                Cerrar sesión
+              </button>
             )}
-          </ul>
+          </div>
         </div>
       </div>
     </nav>

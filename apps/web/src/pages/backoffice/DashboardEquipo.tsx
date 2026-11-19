@@ -4,6 +4,7 @@ import LayoutBackoffice from '../../components/layouts/LayoutBackoffice';
 import EquipoSidebar from '../../components/dashboard/estado-instancia/EquiposSidebar';
 import EstadoActual from '../../components/dashboard/estado-instancia/EstadoActual';
 import Historico from '../../components/dashboard/historico/Historico';
+import InfoAyuda from '../../components/InfoAyuda';
 
 const DashboardEquipo = () => {
   const [searchParams] = useSearchParams();
@@ -14,6 +15,7 @@ const DashboardEquipo = () => {
 
   useEffect(() => {
     setSidebarMobileOpen(false);
+    if (instanciaId) localStorage.setItem('termometro-ultima-ronda', instanciaId);
   }, [instanciaId]);
 
   useEffect(() => {
@@ -68,7 +70,10 @@ const DashboardEquipo = () => {
               )
             ) : (
               <div className="py-4">
-                <p className="evaluation-eyebrow mb-2">Resultados del equipo</p>
+                <div className="d-flex align-items-center gap-2 mb-2">
+                  <p className="evaluation-eyebrow mb-0">Resultados del equipo</p>
+                  <InfoAyuda tema="resultados" />
+                </div>
                 <h2 className="h4 mb-2">Elegí una ronda para ver el termómetro</h2>
                 <p className="text-muted mb-4">Vas a encontrar la participación, el estado actual y el plan de acción.</p>
                 <Link className="btn btn-primary" to="/backoffice/home">

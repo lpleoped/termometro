@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { newFeature } from './domain/feature-validation';
-import { eliminarUsuarioLocal } from './services/eliminar-usuario.service';
+import { eliminarUsuarioLocal, filtroDeInstanciasPropias } from './services/eliminar-usuario.service';
 import { JsonStorage } from './storage/json-storage';
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'termometro-delete-user-'));
@@ -13,16 +13,23 @@ process.env.TERMOMETRO_DATA_DIR = directory;
 const storage = new JsonStorage(directory);
 storage.initialize();
 
-storage.save('usuarios', { _id: 'user-1', nombre: 'Ana', email: 'ana@example.com', password: 'hash', rol: 'facilitador' });
-storage.save('usuarios', { _id: 'user-2', nombre: 'Bea', email: 'bea@example.com', password: 'hash', rol: 'facilitador' });
+storage.save('usuarios', { _id: 'user-1', nombre: 'Ana', email: 'ana@example.com', password: 'hash', rol: 'lider' });
+storage.save('usuarios', { _id: 'user-2', nombre: 'Bea', email: 'bea@example.com', password: 'hash', rol: 'lider' });
+storage.save('usuarios', { _id: 'user-3', nombre: 'Sin equipos', email: 'vacio@example.com', password: 'hash', rol: 'lider' });
 storage.save('equipos', { _id: 'equipo-1', nombre: 'Equipo Ana', creadoPor: 'user-1', miembros: [] });
 storage.save('equipos', { _id: 'equipo-2', nombre: 'Equipo Bea', creadoPor: 'user-2', miembros: [] });
 storage.save('evaluaciones', { _id: 'eval-1', titulo: 'Pulso Ana', version: '1', creadoPor: 'user-1', secciones: [] });
+storage.save('evaluaciones', { _id: 'eval-2', titulo: 'Pulso Bea', version: '1', creadoPor: 'user-2', secciones: [] });
 storage.save('instancias', {
   _id: 'ronda-1', equipo: 'equipo-1', evaluacion: 'eval-1', activadoEn: '2026-01-01T00:00:00.000Z',
   cantidadEsperada: 1, modoRespuesta: 'anonima', minimoAnonimato: 1, estado: 'activa',
 });
+storage.save('instancias', {
+  _id: 'ronda-2', equipo: 'equipo-2', evaluacion: 'eval-2', activadoEn: '2026-01-02T00:00:00.000Z',
+  cantidadEsperada: 1, modoRespuesta: 'anonima', minimoAnonimato: 1, estado: 'activa',
+});
 storage.save('respuestas', { _id: 'resp-1', instanciaEvaluacion: 'ronda-1', respuestas: [] });
+storage.save('respuestas', { _id: 'resp-2', instanciaEvaluacion: 'ronda-2', respuestas: [] });
 
 const accion = newFeature('accionesPlan', {
   instanciaEvaluacion: 'ronda-1',
@@ -90,7 +97,19 @@ storage.save('integrationConnections', { ...connection, _id: 'conn-1' });
 const teamSettings = newFeature('teamIntegrationSettings', { userId: 'user-1', equipoId: 'equipo-1' });
 storage.save('teamIntegrationSettings', { ...teamSettings, _id: 'tis-1' });
 
+const uso = newFeature('aiUsages', { userId: 'user-1', motivo: 'prueba', modelo: 'fixture', fecha: new Date('2026-11-01T00:00:00.000Z') });
+storage.save('aiUsages', { ...uso, _id: 'uso-1' });
+
 async function run() {
+  assert.equal(filtroDeInstanciasPropias([], []), null);
+  assert.deepEqual(filtroDeInstanciasPropias(['equipo-2'], []), { $or: [{ equipo: { $in: ['equipo-2'] } }] });
+
+  const ajena = await eliminarUsuarioLocal(directory, 'vacio@example.com', false);
+  assert.equal(ajena.collections.instancias, 0);
+  assert.equal(ajena.collections.respuestas, 0);
+  assert.equal(storage.list('instancias').length, 2);
+  assert.equal(storage.list('usuarios').some((row) => row._id === 'user-3'), false);
+
   const preview = await eliminarUsuarioLocal(directory, 'ana@example.com', true);
   assert.equal(preview.collections.usuarios, 1);
   assert.equal(preview.collections.equipos, 1);
@@ -104,8 +123,10 @@ async function run() {
   assert.equal(storage.list('usuarios')[0]._id, 'user-2');
   assert.equal(storage.list('equipos').length, 1);
   assert.equal(storage.list('equipos')[0]._id, 'equipo-2');
-  assert.equal(storage.list('instancias').length, 0);
-  assert.equal(storage.list('respuestas').length, 0);
+  assert.equal(storage.list('instancias').length, 1);
+  assert.equal(storage.list('instancias')[0]._id, 'ronda-2');
+  assert.equal(storage.list('respuestas').length, 1);
+  assert.equal(storage.list('respuestas')[0]._id, 'resp-2');
   assert.equal(storage.list('accionesPlan').length, 0);
   assert.equal(storage.list('teamContextItems').length, 0);
   assert.equal(storage.list('aiProviders').length, 0);
@@ -113,6 +134,7 @@ async function run() {
   assert.equal(storage.list('aiAnalyses').length, 0);
   assert.equal(storage.list('integrationConnections').length, 0);
   assert.equal(storage.list('teamIntegrationSettings').length, 0);
+  assert.equal(storage.list('aiUsages').length, 0);
 
   fs.rmSync(directory, { recursive: true, force: true });
   console.log('eliminar-usuario local: ok');

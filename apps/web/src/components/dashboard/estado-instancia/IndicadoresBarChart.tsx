@@ -168,7 +168,7 @@ const IndicadoresBarChart = ({ indicadores }: Props) => {
             <h6 className="mb-0 fw-semibold text-muted section-title-print">Leyenda de indicadores</h6>
             {indicadores.length > 6 && (
               <button
-                className="btn btn-sm btn-link text-primary p-0 d-print-none"
+                className="btn btn-sm btn-outline-secondary d-print-none"
                 onClick={() => setExpanded(!expanded)}
               >
                 {expanded ? 'Ocultar' : 'Expandir'}

@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { LOCAL_COLLECTIONS, FEATURE_COLLECTIONS, type LocalCollection, type StorageAdapter, type StoredRecord, type PortableSnapshot } from './storage';
 import { validateRecord } from './record-validation';
-import { migrateCollection } from './migrations';
+import { applyMemoriaCompatible, migrateCollection, asegurarColeccionUso } from './migrations';
+import { registrarError } from '../observability/errores';
+import { log } from '../observability/logger';
 
 const FORMAT_VERSION = 1;
 const MAX_BACKUPS = 5;
@@ -30,12 +32,17 @@ const assertRows = (value: unknown, collection: LocalCollection): StoredRecord[]
 
 const parseDocument = (value: unknown, collection: LocalCollection): StoredRecord[] => {
   // Formato legado de la primera iteración: un array sin sobre versionado.
-  if (Array.isArray(value)) return assertRows(migrateCollection(collection, 0, value as StoredRecord[], FORMAT_VERSION), collection);
+  if (Array.isArray(value)) {
+    log.info('persistencia', 'Colección migrada desde el formato legado.', { contexto: { coleccion: collection } });
+    return assertRows(applyMemoriaCompatible(collection, migrateCollection(collection, 0, value as StoredRecord[], FORMAT_VERSION)), collection);
+  }
   if (!value || typeof value !== 'object') throw new Error(`El archivo local ${collection}.json tiene un formato inválido.`);
   const document = value as Partial<CollectionDocument>;
   if (document.schemaVersion !== FORMAT_VERSION) throw new Error(`La versión de ${collection}.json no está soportada: ${String(document.schemaVersion)}.`);
   if (document.collection !== collection) throw new Error(`El archivo ${collection}.json declara una colección diferente.`);
-  return assertRows(document.records, collection);
+  const records = document.records;
+  if (!Array.isArray(records)) return assertRows(records as unknown as StoredRecord[], collection);
+  return assertRows(applyMemoriaCompatible(collection, records), collection);
 };
 
 export class JsonStorage implements StorageAdapter {
@@ -53,7 +60,12 @@ export class JsonStorage implements StorageAdapter {
     if (!fs.existsSync(file)) return [];
     try { return parseDocument(JSON.parse(fs.readFileSync(file, 'utf8')), collection) as T[]; }
     catch (error) {
-      if (error instanceof SyntaxError) throw new Error(`El archivo local ${collection}.json no contiene JSON válido.`);
+      if (error instanceof SyntaxError) {
+        const invalido = new Error(`El archivo local ${collection}.json no contiene JSON válido.`);
+        registrarError('persistencia', invalido, { accion: 'leer', coleccion: collection });
+        throw invalido;
+      }
+      registrarError('persistencia', error, { accion: 'leer', coleccion: collection });
       throw error;
     }
   }
@@ -68,7 +80,9 @@ export class JsonStorage implements StorageAdapter {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       const age = Date.now() - fs.statSync(lock).mtimeMs;
       if (age > STALE_LOCK_MS) { fs.unlinkSync(lock); return this.acquireLock(collection); }
-      throw new Error(`La colección ${collection} está siendo escrita por otro proceso. Intentá nuevamente.`);
+      const ocupada = new Error(`La colección ${collection} está siendo escrita por otro proceso. Intentá nuevamente.`);
+      registrarError('persistencia', ocupada, { accion: 'bloqueo', coleccion: collection });
+      throw ocupada;
     }
     return () => { try { fs.unlinkSync(lock); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; } };
   }
@@ -89,6 +103,9 @@ export class JsonStorage implements StorageAdapter {
       const document: CollectionDocument = { schemaVersion: FORMAT_VERSION, collection, records: rows };
       fs.writeFileSync(temporary, JSON.stringify(document, null, 2), { encoding: 'utf8', mode: 0o600 });
       fs.renameSync(temporary, file);
+    } catch (error) {
+      registrarError('persistencia', error, { accion: 'escribir', coleccion: collection });
+      throw error;
     } finally {
       if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
       release();
@@ -98,13 +115,20 @@ export class JsonStorage implements StorageAdapter {
     this.ensureDirectory();
     const manifest = path.join(this.directory, 'manifest.json');
     const existing = fs.existsSync(manifest) ? JSON.parse(fs.readFileSync(manifest, 'utf8')) : null;
-    if (existing && ![1, 2].includes(existing.formatVersion)) throw new Error('Los datos pertenecen a una versión más nueva. Instalá una versión compatible; tus datos no fueron modificados.');
+    if (existing && ![1, 2].includes(existing.formatVersion)) {
+      const reciente = new Error('Los datos pertenecen a una versión más nueva. Instalá una versión compatible; tus datos no fueron modificados.');
+      registrarError('persistencia', reciente, { accion: 'iniciar', formatVersion: existing.formatVersion });
+      throw reciente;
+    }
     for (const collection of LOCAL_COLLECTIONS) {
       if (!fs.existsSync(this.fileFor(collection))) this.write(collection, []);
       else this.read(collection); // Fail before starting on a newer/invalid schema.
     }
     if (!existing || existing.formatVersion === 1) {
-      if (existing) fs.copyFileSync(manifest, path.join(this.directory, 'manifest.v1.bak'));
+      if (existing) {
+        log.info('persistencia', 'Manifiesto migrado a la versión de formato 2.', { contexto: { formatVersion: 1 } });
+        fs.copyFileSync(manifest, path.join(this.directory, 'manifest.v1.bak'));
+      }
       const temporary = manifest + '.tmp';
       fs.writeFileSync(temporary, JSON.stringify({ schemaVersion: 1, formatVersion: 2, createdAt: existing?.createdAt || new Date().toISOString(), storage: 'json', collections: Object.fromEntries(LOCAL_COLLECTIONS.map(name => [name, FORMAT_VERSION])) }, null, 2), { encoding: 'utf8', mode: 0o600 });
       fs.renameSync(temporary, manifest);
@@ -142,7 +166,11 @@ export class JsonStorage implements StorageAdapter {
     const existed = fs.existsSync(this.directory);
     if (existed) fs.renameSync(this.directory, previous);
     try { fs.renameSync(staging, this.directory); }
-    catch (error) { if (existed) fs.renameSync(previous, this.directory); throw error; }
+    catch (error) {
+      if (existed) fs.renameSync(previous, this.directory);
+      registrarError('persistencia', error, { accion: 'restaurar' });
+      throw error;
+    }
   }
 
   private validateSnapshot(value: unknown): PortableSnapshot {
@@ -151,12 +179,14 @@ export class JsonStorage implements StorageAdapter {
     if (candidate.format !== 'termometro-de-equipo-export' || ![1, 2].includes(candidate.formatVersion!) || !candidate.collections || !candidate.checksums) throw new Error('La exportación no es compatible.');
     // Explicit v1 → v2 migration: old backups had only the five core entities.
     if (candidate.formatVersion === 1) {
+      log.info('persistencia', 'Respaldo migrado de la versión 1 a la 2.');
       for (const name of FEATURE_COLLECTIONS) if (!candidate.collections[name]) {
         candidate.collections[name] = { schemaVersion: 1, collection: name, records: [] };
         candidate.checksums[name] = checksum([]);
       }
       candidate.formatVersion = 2;
     }
+    asegurarColeccionUso(candidate as { collections?: Record<string, { schemaVersion: number; collection: string; records: unknown[] }>; checksums?: Record<string, string> });
     for (const collection of LOCAL_COLLECTIONS) {
       const document = candidate.collections[collection];
       if (!document || document.schemaVersion !== FORMAT_VERSION || document.collection !== collection) throw new Error(`La colección ${collection} no es compatible.`);

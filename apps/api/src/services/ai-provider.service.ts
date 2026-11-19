@@ -3,8 +3,9 @@ import { AI_CHECK_VERSION, requestCompletion, validateProbeAnalysis } from './ai
 import type { AIProviderKind, IAIProvider } from '../domain/feature-records';
 import { featureRepository } from '../repositories/feature.repository';
 import { newFeature, validateFeature } from '../domain/feature-validation';
+import { anotarUso } from './uso.service';
+import { registrarError } from '../observability/errores';
 
-import { requireAIEnabled } from './ai-settings.service';
 
 const credentialKey = () => {
   const secret = process.env.AI_CREDENTIAL_SECRET;
@@ -65,19 +66,21 @@ export const getProviderForUser = async (userId: string, providerId: string) => 
 };
 
 export const testProvider = async (userId: string, providerId: string) => {
-  await requireAIEnabled(userId);
   const provider = await getProviderForUser(userId, providerId);
   try {
-    validateProbeAnalysis(await requestCompletion(provider.endpoint, provider.modelName, decrypt(provider.encryptedApiKey), [
+    const prueba = await requestCompletion(provider.endpoint, provider.modelName, decrypt(provider.encryptedApiKey), [
       { role: 'system', content: 'Return only valid JSON with these keys: resumen (string), fortalezas (array), alertas (array), recomendaciones (array), fuentes (array). Keep every value brief and do not add explanations.' },
       { role: 'user', content: 'Prueba con datos ficticios: índice 70/100, participación 80%, indicador colaboración 70/100. Generá un análisis de una frase, arrays breves.' },
-    ], true));
+    ], true);
+    await anotarUso(userId, 'prueba', provider.modelName, prueba);
+    validateProbeAnalysis(prueba);
     provider.status = 'active';
     provider.checkVersion = AI_CHECK_VERSION;
   } catch (error) {
     provider.status = 'invalid';
     provider.checkVersion = AI_CHECK_VERSION;
     await saveProvider(provider);
+    registrarError('ia', error, { accion: 'probar-proveedor' });
     throw error;
   }
   await saveProvider(provider);

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { JsonStorage } from './json-storage';
+import { asegurarColeccionUso } from './migrations';
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'termometro-json-storage-'));
 
@@ -14,6 +15,8 @@ try {
   assert.equal(manifest.formatVersion, 2);
   assert.equal(manifest.storage, 'json');
   assert.equal(manifest.collections.equipos, 1);
+  assert.equal(manifest.collections.aiUsages, 1);
+  assert.equal(fs.existsSync(path.join(directory, 'aiUsages.json')), true);
 
   const initialTeams = JSON.parse(fs.readFileSync(path.join(directory, 'equipos.json'), 'utf8'));
   assert.deepEqual({ schemaVersion: initialTeams.schemaVersion, collection: initialTeams.collection }, { schemaVersion: 1, collection: 'equipos' });
@@ -43,6 +46,40 @@ try {
   const migrated = JSON.parse(fs.readFileSync(path.join(directory, 'evaluaciones.json'), 'utf8'));
   assert.equal(migrated.schemaVersion, 1);
   assert.equal(migrated.records.length, 2);
+
+  const accionVieja = {
+    _id: 'accion-vieja', instanciaEvaluacion: 'ronda', descripcion: 'Seguir', ownerRole: 'Equipo', horizon: '30d',
+    successMetric: 'Claridad', checkInQuestion: '¿Qué pasó?', estado: 'ejecutada', evidenciaIds: [],
+    checkIns: [{ horizonte: '30d', estado: 'completado', nota: 'La nota sigue' }], veredictos: 'esto no es una lista',
+  };
+  fs.writeFileSync(path.join(directory, 'accionesPlan.json'), JSON.stringify({ schemaVersion: 1, collection: 'accionesPlan', records: [accionVieja] }));
+  const leida = storage.list<typeof accionVieja & { veredictos?: unknown }>('accionesPlan')[0];
+  assert.equal(leida.checkIns[0].nota, 'La nota sigue');
+  assert.equal(leida.veredictos, undefined);
+
+  storage.save('aiUsages', {
+    _id: 'uso-1', userId: 'usuario-1', schemaVersion: 1, motivo: 'lectura', modelo: 'fixture',
+    tokensEntrada: null, tokensSalida: null, costoEstimado: null, fecha: '2026-11-01T00:00:00.000Z',
+  });
+  const uso = storage.get<{ _id: string; tokensEntrada: null; motivo: string; prompt?: string }>('aiUsages', 'uso-1');
+  assert.equal(uso?.tokensEntrada, null);
+  assert.equal(uso?.motivo, 'lectura');
+  assert.equal(uso?.prompt, undefined);
+  const respaldoAnterior = { collections: {} as Record<string, { schemaVersion: number; collection: string; records: unknown[] }>, checksums: {} as Record<string, string> };
+  asegurarColeccionUso(respaldoAnterior);
+  assert.deepEqual((respaldoAnterior.collections.aiUsages as { records: unknown[] }).records, []);
+
+  fs.writeFileSync(path.join(directory, 'aiSettings.json'), JSON.stringify({
+    schemaVersion: 1,
+    collection: 'aiSettings',
+    records: [
+      { _id: 'settings-viejo', userId: 'usuario-1', enabled: false, defaultProviderId: null },
+      { _id: 'settings-raro', userId: 'usuario-2', enabled: false, defaultProviderId: null, budgetPreset: 'raro' },
+    ],
+  }));
+  const presets = storage.list<{ _id: string; budgetPreset?: string }>('aiSettings');
+  assert.equal(presets.find((row) => row._id === 'settings-viejo')?.budgetPreset, 'estándar');
+  assert.equal(presets.find((row) => row._id === 'settings-raro')?.budgetPreset, 'estándar');
 
   console.log('JsonStorage: OK');
 } finally {

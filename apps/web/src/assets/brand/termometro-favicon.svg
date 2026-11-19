@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Ícono Termómetro</title>
+  <desc id="desc">Termómetro simplificado para tamaños pequeños.</desc>
+  <rect x="22" y="7" width="20" height="38" rx="10" fill="#FFFFFF"/>
+  <circle cx="32" cy="45" r="15" fill="#FFFFFF"/>
+  <rect x="28" y="17" width="8" height="30" rx="4" fill="#12263A"/>
+  <circle cx="32" cy="45" r="9" fill="#4B8A88" stroke="#12263A" stroke-width="4"/>
+</svg>

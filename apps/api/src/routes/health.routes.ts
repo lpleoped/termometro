@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PRODUCT_NAME, type HealthResponse } from '@termometro/shared';
 import { estadoMongo } from '../config/db';
+import { laRedLocalEstaAbierta } from '../network/red-local';
 import { dataDirectory, isLocalStorage } from '../storage/local-store';
 
 const router = Router();
@@ -13,6 +14,7 @@ router.get('/health', (_req, res) => {
     mongo: isLocalStorage() ? 'disconnected' : estadoMongo(),
     storage: isLocalStorage() ? 'json' : 'mongo',
     ...(isLocalStorage() ? { dataDirectory: dataDirectory() } : {}),
+    networkListening: laRedLocalEstaAbierta() ? 'lan' : 'loopback',
   };
   res.json(body);
 });

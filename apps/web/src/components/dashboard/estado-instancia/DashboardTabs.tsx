@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import EstadoActual from './EstadoActual';
 import Historico from '../historico/Historico';
 import PlanDeAccion from '../plan/PlanDeAccion';
+import { indiceVisible } from '../../../domain/indice-ronda';
+import { getDashboardPorInstanciaId } from '../../../services/dashboardService';
 import { getInstanciaById } from '../../../services/instanciaService';
 import { getEvaluacionById } from '../../../services/evaluacionService';
 import { getEquipoById } from '../../../services/equipoService';
@@ -105,7 +107,15 @@ const DashboardTabs = ({ instanciaId, evaluacionTitulo: propTitulo, evaluacionVe
           equipo={equipoInfo?.nombre || propEquipo || ''}
         />
       </div>
-      <ul className="nav nav-tabs mb-4">
+      <label className="resultados-vista d-md-none" htmlFor="resultados-vista">
+        <span className="form-label">Qué querés ver</span>
+        <select id="resultados-vista" className="form-select" value={activeTab} onChange={(event) => setActiveTab(event.target.value)}>
+          <option value="actual">Estado actual</option>
+          <option value="historico">Histórico</option>
+          <option value="plan">Plan de acción</option>
+        </select>
+      </label>
+      <ul className="nav nav-tabs mb-4 d-none d-md-flex">
         <li className="nav-item">
           <button
             className={`nav-link ${activeTab === 'actual' ? 'active' : ''}`}
@@ -140,11 +150,31 @@ const DashboardTabs = ({ instanciaId, evaluacionTitulo: propTitulo, evaluacionVe
         <Historico instanciaId={instanciaId} />
       )}
       {activeTab === 'plan' && (
-        <PlanDeAccion instanciaId={instanciaId} indice={0} />
+        <PlanConIndice instanciaId={instanciaId} />
       )}
     </>
   );
 };
+
+function PlanConIndice({ instanciaId }: { instanciaId: string }) {
+  const [indice, setIndice] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    getDashboardPorInstanciaId(instanciaId)
+      .then((data) => {
+        if (!cancelado) setIndice(indiceVisible(data));
+      })
+      .catch(() => {
+        if (!cancelado) setIndice(null);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [instanciaId]);
+
+  return <PlanDeAccion instanciaId={instanciaId} indice={indice} />;
+}
 
 export default DashboardTabs;
 

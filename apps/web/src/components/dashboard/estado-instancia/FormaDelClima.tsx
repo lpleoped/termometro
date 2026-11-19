@@ -163,11 +163,11 @@ function BarrasIndicadores({ filas, muestraHeterogenea }: { filas: IndicadorClim
         <div className="climate-indicator-bar" key={`${index}-${fila.id}`}>
           <div className="d-flex justify-content-between gap-3 mb-1">
             <span className="climate-indicator-bar-label"><strong>{index + 1}.</strong> {fila.texto}</span>
-            <span className="text-nowrap fw-semibold">{fila.valor} / 100</span>
+            <span className="text-nowrap fw-semibold">{fila.n > 0 ? `${fila.valor} / 100` : 'Sin respuestas'}</span>
           </div>
-          <div className="climate-score-track" aria-hidden="true">
+          {fila.n > 0 && <div className="climate-score-track" aria-hidden="true">
             <span style={{ width: `${Math.max(0, Math.min(100, fila.valor))}%`, backgroundColor: colorDe(fila.valor) }} />
-          </div>
+          </div>}
           {muestraHeterogenea && (
             <small className="climate-indicator-sample text-muted">
               {fila.n} {fila.n === 1 ? 'respuesta válida' : 'respuestas válidas'}

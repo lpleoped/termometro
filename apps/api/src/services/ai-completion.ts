@@ -3,6 +3,7 @@ import dns from 'node:dns/promises';
 import net from 'node:net';
 import http from 'node:http';
 import https from 'node:https';
+import { getBudgetLimits } from './ai-budget-presets';
 
 export const AI_CHECK_VERSION = 2;
 export const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 180_000; // Increased from 120s to 180s for cold-start
@@ -32,7 +33,21 @@ export const assertSafeEndpoint = async (endpoint: string) => {
 };
 
 export class AIRequestError extends Error {
-  constructor(public code: string, message: string, public status = 502, public diagnostic?: string) { super(message); }
+  constructor(public code: string, message: string, public status = 502, public diagnostic?: string) {
+    super(message);
+    this.name = 'AIRequestError';
+  }
+}
+
+/** Sobrevive a recargas de ts-node-dev donde `instanceof` falla entre copias del módulo. */
+export function asAIRequestError(error: unknown): AIRequestError | null {
+  if (error instanceof AIRequestError) return error;
+  if (!error || typeof error !== 'object') return null;
+  const value = error as { name?: string; code?: unknown; message?: unknown; status?: unknown; diagnostic?: unknown };
+  if (typeof value.code !== 'string' || !value.code.startsWith('AI_') || typeof value.message !== 'string') return null;
+  if (typeof value.status !== 'number' || !Number.isInteger(value.status)) return null;
+  if (value.name && value.name !== 'Error' && value.name !== 'AIRequestError') return null;
+  return new AIRequestError(value.code, value.message, value.status, typeof value.diagnostic === 'string' ? value.diagnostic : undefined);
 }
 
 const safeDiagnostic = (value: unknown) => {
@@ -48,7 +63,9 @@ const providerDiagnostic = (error: any) => {
 };
 
 export function aiError(error: unknown): AIRequestError {
-  if (error instanceof AIRequestError) return error;
+  const _dbg = error as { name?: string; message?: string; code?: string; status?: number; syscall?: string; stack?: string; response?: { status?: number } };
+  const known = asAIRequestError(error);
+  if (known) return known;
   if (axios.isAxiosError(error)) {
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       const timeoutSeconds = Math.round(AI_TIMEOUT_MS / 1000);
@@ -62,18 +79,57 @@ export function aiError(error: unknown): AIRequestError {
     if (status === 400 || status === 404) return new AIRequestError('AI_CONFIGURATION', 'El proveedor rechazó el modelo o el formato de la solicitud. Revisá el modelo y la dirección del servicio en Configuración de IA.', 502, providerDiagnostic(error));
     return new AIRequestError('AI_UNAVAILABLE', 'No se pudo obtener una respuesta del proveedor. Revisá la conexión y volvé a intentar.', 502, providerDiagnostic(error));
   }
-  return new AIRequestError('AI_INTERNAL', 'No se pudo completar el análisis. Volvé a intentar; si persiste, revisá la configuración.');
+  const networkCode = typeof _dbg?.code === 'string' ? _dbg.code : undefined;
+  if (networkCode && ['ENOTFOUND', 'ECONNREFUSED', 'ECONNRESET', 'EAI_AGAIN', 'EPIPE', 'ENETUNREACH'].includes(networkCode)) {
+    return new AIRequestError('AI_UNAVAILABLE', 'No se pudo obtener una respuesta del proveedor. Revisá la conexión y volvé a intentar.', 502, safeDiagnostic(`${networkCode}${_dbg?.message ? `: ${_dbg.message}` : ''}`));
+  }
+  return new AIRequestError('AI_INTERNAL', 'No se pudo completar el análisis. Volvé a intentar; si persiste, revisá la configuración.', 502, safeDiagnostic(typeof _dbg?.message === 'string' ? _dbg.message : networkCode));
 }
 
-export function completionBody(endpoint: string, model: string, messages: unknown[], probe = false) {
+const instructionMojibake = /[\u00C3\u00C2\u00E2\u00F0](?:[\u0080-\u00FF\u0192\u20AC\u2018-\u2022\u2026\u2030\u2122\u0178])+/;
+
+/** Las instrucciones propias se envían tal cual. Un texto con codificación rota no puede llegar al modelo. */
+export function assertCleanInstructionText(text: string, name = 'interna') {
+  if (instructionMojibake.test(text)) {
+    throw new AIRequestError('AI_PROMPT_ENCODING', `La instrucción ${name} tiene texto con codificación rota.`, 500);
+  }
+}
+
+export function completionBody(endpoint: string, model: string, messages: unknown[], probe = false, maxOutputTokens?: number) {
   const openai = new URL(endpoint).hostname === 'api.openai.com';
   // Only apply this capability to the documented GPT-5 family on OpenAI.
   const reasoning = openai && /^gpt-5(?:-(?:mini|nano))?(?:-\d{4}-\d{2}-\d{2})?$/.test(model);
+  const salida = probe ? 1024 : (typeof maxOutputTokens === 'number' && maxOutputTokens > 0 ? Math.floor(maxOutputTokens) : getBudgetLimits().maxOutputTokens);
   return {
     model, messages, response_format: { type: 'json_object' },
-    ...(openai ? { max_completion_tokens: probe ? 1024 : 4096 } : { max_tokens: probe ? 1024 : 4096 }),
+    ...(openai ? { max_completion_tokens: salida } : { max_tokens: salida }),
     ...(reasoning ? { reasoning_effort: 'low' } : {}),
   };
+}
+
+export function leerUsoProveedor(data: unknown): { tokensEntrada: number | null; tokensSalida: number | null; costoEstimado: number | null } | null {
+  const usage = (data as { usage?: unknown } | null)?.usage;
+  if (!usage || typeof usage !== 'object') return null;
+  const bloque = usage as Record<string, unknown>;
+  const numero = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+  return {
+    tokensEntrada: numero(bloque.prompt_tokens ?? bloque.input_tokens),
+    tokensSalida: numero(bloque.completion_tokens ?? bloque.output_tokens),
+    costoEstimado: numero(bloque.cost ?? bloque.estimated_cost ?? bloque.total_cost),
+  };
+}
+
+const USO = Symbol.for('termometro.usoProveedor');
+
+export function adjuntarUso<T>(valor: T, data: unknown): T {
+  if (!valor || typeof valor !== 'object') return valor;
+  Object.defineProperty(valor, USO, { value: leerUsoProveedor(data), enumerable: false });
+  return valor;
+}
+
+export function usoDe(valor: unknown): { tokensEntrada: number | null; tokensSalida: number | null; costoEstimado: number | null } | null {
+  if (!valor || typeof valor !== 'object' || !(USO in valor)) return null;
+  return (valor as Record<symbol, { tokensEntrada: number | null; tokensSalida: number | null; costoEstimado: number | null } | null>)[USO] ?? null;
 }
 
 export function parseCompletion(data: any): unknown {
@@ -87,7 +143,11 @@ export function parseCompletion(data: any): unknown {
   catch { throw new AIRequestError('AI_FORMAT', 'El proveedor devolvió una respuesta con formato inválido. Volvé a intentar.', 502, 'El contenido recibido no era JSON válido. Puede indicar un endpoint incompatible o una respuesta de formato antiguo.'); }
 }
 
-export async function requestCompletion(endpoint: string, model: string, token: string | undefined, messages: unknown[], probe = false) {
+export async function requestCompletion(endpoint: string, model: string, token: string | undefined, messages: unknown[], probe = false, maxOutputTokens?: number) {
+  messages.forEach((message) => {
+    const instruction = message as { role?: string; content?: unknown };
+    if (instruction?.role === 'system' && typeof instruction.content === 'string') assertCleanInstructionText(instruction.content);
+  });
   try {
     const pinnedAddress = await assertSafeEndpoint(endpoint);
     const url = new URL(endpoint);
@@ -97,16 +157,30 @@ export async function requestCompletion(endpoint: string, model: string, token: 
       else callback(null, pinnedAddress, family);
     } : undefined;
     const agent = url.protocol === 'https:' ? new https.Agent({ lookup: lookup as any }) : new http.Agent({ lookup: lookup as any });
-    const response = await axios.post(`${endpoint}/chat/completions`, completionBody(endpoint, model, messages, probe), {
+    const response = await axios.post(`${endpoint}/chat/completions`, completionBody(endpoint, model, messages, probe, maxOutputTokens), {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
       timeout: AI_TIMEOUT_MS, maxRedirects: 0, maxContentLength: 1024 * 1024, httpAgent: agent, httpsAgent: agent,
     });
-    return parseCompletion(response.data);
-  } catch (error) { throw aiError(error); }
+    return adjuntarUso(parseCompletion(response.data), response.data);
+  } catch (error) {
+    throw aiError(error);
+  }
 }
 
 export function validateAnalysis(value: unknown) {
   const v = value as Record<string, unknown> | null;
+  const temasRecibidos = v?.temasRecurrentes;
+  if (v && Array.isArray(temasRecibidos)) {
+    const temas = temasRecibidos.filter((theme) => {
+      const item = theme as { evidenciaIds?: unknown; frecuencia?: unknown };
+      return Array.isArray(item?.evidenciaIds) && item.evidenciaIds.length >= 2 && Number.isInteger(item.frecuencia) && (item.frecuencia as number) >= 2;
+    });
+    const omitidos = temasRecibidos.length - temas.length;
+    v.temasRecurrentes = temas;
+    if (omitidos > 0 && Array.isArray(v.limitations)) {
+      v.limitations = [...v.limitations, 'Se omitió un tema que no reunía al menos dos respuestas distintas.'];
+    }
+  }
   const list = (item: unknown): item is string[] => Array.isArray(item) && item.length <= 20 && item.every(s => typeof s === 'string' && s.length <= 4000);
   const findings = (item: unknown) => {
     if (!Array.isArray(item) || item.length > 20) return false;
@@ -142,7 +216,7 @@ export function validateAnalysis(value: unknown) {
     const fields = ['resumen', 'fortalezas', 'alertas', 'recomendaciones', 'nivelConfianza', 'fuentes', 'hallazgos', 'senalesEmocionales', 'temasRecurrentes', 'limitations'].filter(field => !(field in (v || {})));
     throw new AIRequestError('AI_FORMAT', 'El proveedor devolvió un análisis incompleto o con formato inválido. Volvé a intentar.', 502, fields.length ? `Faltan campos requeridos: ${fields.join(', ')}.` : 'Uno o más campos no tienen el tipo o rango esperado.');
   }
-  return { resumen: v.resumen, fortalezas: v.fortalezas, alertas: v.alertas, recomendaciones: v.recomendaciones, nivelConfianza: v.nivelConfianza, fuentes: v.fuentes, hallazgos: v.hallazgos, senalesEmocionales: v.senalesEmocionales || [], temasRecurrentes: v.temasRecurrentes || [], limitations: v.limitations, accionesContextuales: v.accionesContextuales || [] };
+  return { resumen: v.resumen, fortalezas: v.fortalezas, alertas: v.alertas, recomendaciones: v.recomendaciones, nivelConfianza: v.nivelConfianza, fuentes: v.fuentes, hallazgos: v.hallazgos, senalesEmocionales: Array.isArray(v.senalesEmocionales) ? v.senalesEmocionales : [], temasRecurrentes: Array.isArray(v.temasRecurrentes) ? v.temasRecurrentes : [], limitations: v.limitations, accionesContextuales: Array.isArray(v.accionesContextuales) ? v.accionesContextuales : [] };
 }
 
 export const QUALITATIVE_ANALYSIS_INSTRUCTIONS = 'Las respuestas cualitativas del campo qualitative.responses son parte obligatoria del análisis. Compará respuestas entre participantes y agrupá expresiones semánticamente similares aunque usen palabras distintas. Devolvé senalesEmocionales y temasRecurrentes; usá arrays vacíos cuando no haya evidencia suficiente. Cada tema recurrente requiere al menos 2 respuestas distintas, su frecuencia debe coincidir con la cantidad de respuestas respaldatorias y evidenciaIds debe contener sus IDs exactos. Las señales emocionales son tono agregado expresado en los textos, no diagnóstico de personas, salud mental ni personalidad. No muestres comentarios textuales individuales ni identifiques participantes; toda señal requiere revisión humana.';

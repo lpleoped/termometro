@@ -5,13 +5,14 @@ API Express + TypeScript + MongoDB — clima de equipo.
 ```bash
 # desde la raíz del monorepo
 cp apps/api/.env.example apps/api/.env
-npm run dev:api
+npm run dev          # web local con MongoDB
+npm run dev:api      # solo la API de esa web
 npm run seed
 ```
 
-Demo seed: `test@test.com` / `123123`
+`npm run seed` carga un atajo local de desarrollo. No es la cuenta para conocer el producto: en la app local la cuenta se crea en el primer arranque.
 
-Endpoints: [docs/API.md](../../docs/API.md).
+Endpoints: [docs/dev/api.md](../../docs/dev/api.md).
 
 ## Eliminar los datos de un usuario
 

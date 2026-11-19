@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LayoutBackoffice from '../../components/layouts/LayoutBackoffice';
+import InfoAyuda from '../../components/InfoAyuda';
 import { getEvaluaciones, type Evaluacion } from '../../services/evaluacionService';
 
 function idDe(doc: { _id?: string; id?: string }): string {
@@ -66,11 +67,14 @@ export default function ConsultaEvaluaciones() {
     <LayoutBackoffice>
       <div className="container py-4">
         <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
-          <h2 className="fw-bold mb-0">Tus cuestionarios</h2>
+          <div className="d-flex align-items-center gap-2">
+            <h2 className="fw-bold mb-0">Tus cuestionarios</h2>
+            <InfoAyuda tema="cuestionarios" />
+          </div>
           {evaluaciones.length > 0 && (
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-outline-secondary"
               onClick={() => navigate('/backoffice/alta-evaluacion')}
             >
               Armar un cuestionario
@@ -95,14 +99,24 @@ export default function ConsultaEvaluaciones() {
               <div key={id || cuestionario.titulo} className="card mb-3 shadow-sm border-0">
                 <div className="card-body d-flex flex-wrap align-items-center justify-content-between gap-2">
                   <div className="fw-semibold fs-5 text-primary">{cuestionario.titulo}</div>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => navigate(`/backoffice/consulta-evaluacion/${id}`)}
-                    disabled={!id}
-                  >
-                    Ver el cuestionario
-                  </button>
+                  <div className="d-flex flex-wrap align-items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => navigate(`/backoffice/consulta-evaluacion/${id}`)}
+                      disabled={!id}
+                    >
+                      Ver preguntas
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => navigate(`/backoffice/publicar-evaluacion?evaluacionId=${id}`)}
+                      disabled={!id}
+                    >
+                      Abrir la ronda
+                    </button>
+                  </div>
                 </div>
               </div>
             );

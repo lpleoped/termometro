@@ -2,6 +2,7 @@ import type { LocalCollection, StoredRecord } from './storage';
 import { FEATURE_COLLECTIONS } from './storage';
 import type { FeatureCollection } from '../domain/feature-records';
 import { validateFeature } from '../domain/feature-validation';
+import { guardPersisted } from '../domain/persisted-schemas';
 
 const isObject = (value: unknown): value is Record<string, any> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const requiredString = (row: Record<string, any>, key: string, collection: LocalCollection, index: number) => {
@@ -36,4 +37,5 @@ export const validateRecord = (collection: LocalCollection, row: StoredRecord, i
     case 'respuestas':
       requiredString(data, 'instanciaEvaluacion', collection, index); requiredArray(data, 'respuestas', collection, index); break;
   }
+  guardPersisted(collection, data);
 };

@@ -25,6 +25,7 @@ export interface IAccionPlan extends Document {
   verificadaEn?: Date;
   checkIns: Array<{ horizonte: HorizonteAccion; venceEn: Date; estado: 'pendiente' | 'completado'; nota?: string; completadoEn?: Date; resultado?: { indiceAnterior?: number; indicePosterior?: number; delta?: number } }>;
   resultado?: { indiceAnterior?: number; indicePosterior?: number; delta?: number; medidoEn?: Date; interpretacion?: string };
+  veredictos?: Array<{ indicadorId: string; texto?: string; valorAdopcion?: number; valorPosterior?: number; delta?: number; veredicto: 'sin_medicion_posterior' | 'todavia_es_pronto' | 'hay_una_senal' | 'no_se_movio' | 'se_movio_en_contra' }>;
   integraciones?: Array<{ provider: 'slack' | 'monday'; externalId?: string; url?: string; status: 'published' | 'error'; error?: string; publishedAt: Date }>;
 }
 
@@ -54,6 +55,7 @@ const AccionPlanSchema = new Schema<IAccionPlan>({
   verificadaEn: Date,
   checkIns: [{ horizonte: { type: String, enum: ['7d', '30d', '90d'], required: true }, venceEn: { type: Date, required: true }, estado: { type: String, enum: ['pendiente', 'completado'], default: 'pendiente' }, nota: String, completadoEn: Date, resultado: { indiceAnterior: Number, indicePosterior: Number, delta: Number } }],
   resultado: { indiceAnterior: Number, indicePosterior: Number, delta: Number, medidoEn: Date, interpretacion: String },
+  veredictos: [{ indicadorId: String, texto: String, valorAdopcion: Number, valorPosterior: Number, delta: Number, veredicto: { type: String, enum: ['sin_medicion_posterior', 'todavia_es_pronto', 'hay_una_senal', 'no_se_movio', 'se_movio_en_contra'] } }],
   integraciones: [{ provider: { type: String, enum: ['slack', 'monday'] }, externalId: String, url: String, status: { type: String, enum: ['published', 'error'] }, error: String, publishedAt: { type: Date, default: Date.now } }],
 }, { optimisticConcurrency: true });
 

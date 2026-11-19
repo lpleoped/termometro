@@ -43,7 +43,7 @@ export default function LecturaCuestionario() {
   }, [cargar]);
 
   const volver = (
-    <Link to="/backoffice/consulta-evaluacion">Volver a tus cuestionarios</Link>
+    <Link className="btn btn-sm estado-atajo" to="/backoffice/consulta-evaluacion">Volver a tus cuestionarios</Link>
   );
 
   if (cargando) {

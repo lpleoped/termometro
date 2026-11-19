@@ -202,8 +202,8 @@ export const getEstadoActualDashboard = async (
     },
     calidadMedicion: {
       advertencias: [
-        ...(cantidadEsperada > 0 && cantidadRespondida / cantidadEsperada < 0.5 ? ['La participaciÃ³n es baja; el resultado representa a quienes respondieron.'] : []),
-        ...(cantidadRespondida < 3 ? ['La muestra no permite estimar dispersiÃ³n ni detectar techo/piso con estabilidad.'] : []),
+        ...(cantidadEsperada > 0 && cantidadRespondida / cantidadEsperada < 0.5 ? ['La participación es baja; el resultado representa a quienes respondieron.'] : []),
+        ...(cantidadRespondida < 3 ? ['La muestra no permite estimar dispersión ni detectar techo/piso con estabilidad.'] : []),
       ],
       semaforoEsOperativo: true,
     },

@@ -1,4 +1,5 @@
 import { Equipo } from '../models/Equipo';
+import { guardValue } from '../domain/persisted-schemas';
 import { getLocal, isLocalStorage, listLocal, localId, localNow, saveLocal } from '../storage/local-store';
 import { resolveMongooseResult, plainRecord } from './mongoose-result';
 
@@ -47,14 +48,14 @@ class JsonTeamRepository implements TeamRepository {
   }
 }
 
-const plain = (value: any): TeamRecord | null => value ? plainRecord<TeamRecord>(value) : null;
+const plain = (value: any): TeamRecord | null => value ? guardValue('equipos', plainRecord<TeamRecord>(value)) : null;
 
 class MongoTeamRepository implements TeamRepository {
   async insert(input: Pick<TeamRecord, 'nombre' | 'descripcion' | 'creadoPor'>) { return plain(await new Equipo(input).save())!; }
-  async findById(id: string) { return resolveMongooseResult<TeamRecord | null>(Equipo.findById(id)); }
-  async listActiveByOwner(userId: string) { return resolveMongooseResult<TeamRecord[]>(Equipo.find({ creadoPor: userId, activo: { $ne: false } })); }
-  async findOwned(id: string, userId: string) { return resolveMongooseResult<TeamRecord | null>(Equipo.findOne({ _id: id, creadoPor: userId })); }
-  async findOwnedActive(id: string, userId: string) { return resolveMongooseResult<TeamRecord | null>(Equipo.findOne({ _id: id, creadoPor: userId, activo: { $ne: false } })); }
+  async findById(id: string) { return guardValue('equipos', await resolveMongooseResult<TeamRecord | null>(Equipo.findById(id))); }
+  async listActiveByOwner(userId: string) { return guardValue('equipos', await resolveMongooseResult<TeamRecord[]>(Equipo.find({ creadoPor: userId, activo: { $ne: false } }))); }
+  async findOwned(id: string, userId: string) { return guardValue('equipos', await resolveMongooseResult<TeamRecord | null>(Equipo.findOne({ _id: id, creadoPor: userId }))); }
+  async findOwnedActive(id: string, userId: string) { return guardValue('equipos', await resolveMongooseResult<TeamRecord | null>(Equipo.findOne({ _id: id, creadoPor: userId, activo: { $ne: false } }))); }
   async updateOwnedActive(id: string, userId: string, changes: Partial<Pick<TeamRecord, 'nombre' | 'descripcion'>>) {
     return plain(await Equipo.findOneAndUpdate({ _id: id, creadoPor: userId, activo: { $ne: false } }, changes, { new: true, runValidators: true }));
   }

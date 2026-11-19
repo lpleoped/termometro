@@ -99,20 +99,14 @@ INTEGRATION_ENCRYPTION_KEY=<al menos 32 caracteres aleatorios>
 
 ## Estado del proyecto
 
-Termómetro de Equipo es un proyecto open source en estado MVP/beta. Para uso empresarial con información sensible, se recomienda:
+La superficie publicada es la aplicación local. Corre en la computadora de quien la usa y los datos quedan ahí. No se opera un servicio multiusuario en internet.
 
-- Auditoría de seguridad completa
-- Rate limiting en endpoints públicos
-- Roles de miembros con permisos granulares
-- Política de retención de datos
-- Monitoreo y alertas de seguridad
-- Revisión periódica de dependencias
-- Secret manager enterprise (no variables de entorno)
+Termómetro de Equipo es un proyecto open source en estado MVP/beta. No se presenta como producto oficial de la empresa titular del código de ese período. Ver [docs/ORIGEN_Y_TITULARIDAD.md](docs/ORIGEN_Y_TITULARIDAD.md).
 
 ## Limitaciones conocidas
 
 No se consideran vulnerabilidades:
-- Resultados interpretativos de la IA (claramente marcados como sugerencias)
+- Resultados interpretativos de la IA, incluida la señal agregada del tono. No es un diagnóstico de emociones ni una lectura de reunión.
 - Problemas de UX o usabilidad sin impacto en seguridad
 
 Sí es reportable:

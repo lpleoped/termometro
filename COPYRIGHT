@@ -1,20 +1,16 @@
-Copyright holders for Termómetro de Equipo:
+Copyright holder for Termómetro de Equipo:
 
-1. Leonardo Pedreira — idea original y desarrollo (2024–2025), iniciativa
-   personal; presentación en 2025 en IBM ante más de 100 personas como
-   iniciativa personal de IA aplicada en desarrollo de software; exploración
-   y ingeniería en tiempo personal.
-2. International Business Machines Corporation (IBM) — cotitularidad / ownership
-   interests arising from the author's contractual framework with IBM, even
-   where creative work was performed on personal time.
+Leonardo Pedreira — idea y primera implementación (2024), en otro repositorio,
+en tiempo personal, con herramientas de IA e IDEs con IA integrada de uso
+exclusivamente personal.
+
+Bajo el contrato vigente en ese período, el código pertenecía a esa empresa.
+La idea y la implementación se mostraron ante un sector de LATAM de esa empresa.
+El CTO de esa empresa autorizó la publicación open source para que eso mostrado
+pudiera tener valor. El material público no incluye personas, clientes ni nada
+que comprometa a la empresa. Este repositorio no se presenta como producto
+oficial de esa empresa.
 
 Years: 2024-2026. See NOTICE.
 
-Open-source release of this product was authorized in writing by the CTO of
-IBM Consulting. That authorization states the work was done on the author's
-own time and that publishing it as open source raises no competition or
-conflict. Public material must not include people, clients, or anything that
-could compromise the company. The presentation material already submitted was
-validated by that CTO.
-
-This is not an official IBM product. Licensed under Apache-2.0.
+Licensed under Apache-2.0.

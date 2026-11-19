@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Resultados de Termómetro</title>
+  <desc id="desc">Composición de resultados con índice general y barras de indicadores.</desc>
+  <rect width="1024" height="1024" rx="48" fill="#F5F9FB"/>
+  <rect x="64" y="64" width="896" height="116" rx="20" fill="#12263A"/>
+  <text x="112" y="138" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="600">Resultados de la ronda</text>
+  <rect x="64" y="220" width="424" height="260" rx="24" fill="#FFFFFF" stroke="#D9E4EA" stroke-width="4"/>
+  <text x="104" y="286" fill="#5A6D7A" font-family="Arial, Helvetica, sans-serif" font-size="28">Índice general</text>
+  <text x="104" y="410" fill="#12263A" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="600">78</text>
+  <text x="282" y="410" fill="#4B8A88" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="600">/100</text>
+  <rect x="536" y="220" width="424" height="260" rx="24" fill="#FFFFFF" stroke="#D9E4EA" stroke-width="4"/>
+  <text x="576" y="286" fill="#5A6D7A" font-family="Arial, Helvetica, sans-serif" font-size="28">Participación</text>
+  <text x="576" y="410" fill="#12263A" font-family="Arial, Helvetica, sans-serif" font-size="86" font-weight="600">84%</text>
+  <text x="64" y="560" fill="#12263A" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="600">Indicadores principales</text>
+  <text x="64" y="632" fill="#28343D" font-family="Arial, Helvetica, sans-serif" font-size="26">Comunicación</text>
+  <rect x="64" y="656" width="896" height="24" rx="12" fill="#D9E4EA"/><rect x="64" y="656" width="736" height="24" rx="12" fill="#3D6F91"/>
+  <text x="64" y="744" fill="#28343D" font-family="Arial, Helvetica, sans-serif" font-size="26">Confianza</text>
+  <rect x="64" y="768" width="896" height="24" rx="12" fill="#D9E4EA"/><rect x="64" y="768" width="656" height="24" rx="12" fill="#4B8A88"/>
+  <text x="64" y="856" fill="#28343D" font-family="Arial, Helvetica, sans-serif" font-size="26">Sostenibilidad</text>
+  <rect x="64" y="880" width="896" height="24" rx="12" fill="#D9E4EA"/><rect x="64" y="880" width="560" height="24" rx="12" fill="#2374B8"/>
+</svg>

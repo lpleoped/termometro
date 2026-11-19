@@ -34,7 +34,7 @@ export const buildContext = (input: {
   const limitations = [
     ...(input.sample.received < 3 ? ['Muestra insuficiente para interpretación cualitativa agregada.'] : []),
     ...(responses.length !== themes.reduce((total, theme) => total + theme.frequency, 0) ? ['Se ocultaron grupos cualitativos con menos de 3 respuestas.'] : []),
-    ...(input.sample.expected > 0 && input.sample.participation < 0.5 ? ['ParticipaciÃ³n baja: interpretar los resultados como seÃ±ales de quienes respondieron.'] : []),
+    ...(input.sample.expected > 0 && input.sample.participation < 0.5 ? ['Participación baja: interpretar los resultados como señales de quienes respondieron.'] : []),
     ...(input.qualitativeSuppressedReason ? [input.qualitativeSuppressedReason] : []),
   ];
   const context: TeamClimateContext = {

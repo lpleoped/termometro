@@ -32,6 +32,7 @@ export interface IEvaluacion extends Document {
   configuracion?: IConfiguracionEvaluacion;
   secciones: ISeccion[];
   creadoPor: string;
+  equipoId?: string;
   origenCuestionario: 'manual' | 'ia';
   revisionHumana: { estado: 'pendiente' | 'aprobada'; revisadoPor?: string; revisadoEn?: Date };
   createdAt?: Date;
@@ -78,6 +79,7 @@ const EvaluacionSchema = new Schema<IEvaluacion>(
     configuracion: ConfiguracionEvaluacionSchema,
     secciones: { type: [SeccionSchema], required: true },
     creadoPor: { type: String, required: true },
+    equipoId: { type: String },
     origenCuestionario: { type: String, enum: ['manual', 'ia'], default: 'manual' },
     revisionHumana: { estado: { type: String, enum: ['pendiente', 'aprobada'], default: 'aprobada' }, revisadoPor: String, revisadoEn: Date },
   },

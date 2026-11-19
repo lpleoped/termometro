@@ -1,4 +1,5 @@
 import { InstanciaEvaluacion } from '../models/InstanciaEvaluacion';
+import { guardValue } from '../domain/persisted-schemas';
 import { getLocal, isLocalStorage, listLocal, localId, localNow, saveLocal } from '../storage/local-store';
 import { resolveMongooseResult, plainRecord } from './mongoose-result';
 
@@ -34,26 +35,28 @@ class JsonRoundRepository implements RoundRepository {
     return listLocal<RoundRecord>('instancias').filter(item => item.equipo === teamId).sort((a, b) => String(b.activadoEn).localeCompare(String(a.activadoEn)));
   }
   async listByTeamAndEvaluation(teamId: string, evaluationId: string) {
-    return (await this.listByTeam(teamId)).filter(item => item.evaluacion === evaluationId);
+    return (await this.listByTeam(teamId))
+      .filter(item => item.evaluacion === evaluationId)
+      .sort((a, b) => String(a.activadoEn).localeCompare(String(b.activadoEn)));
   }
 }
 
 class MongoRoundRepository implements RoundRepository {
   async findById(id: string) {
     const query: any = InstanciaEvaluacion.findById(id);
-    if (query && typeof query.lean === 'function') return resolveMongooseResult<RoundRecord | null>(query);
+    if (query && typeof query.lean === 'function') return guardValue('instancias', await resolveMongooseResult<RoundRecord | null>(query));
     if (query && typeof query.populate === 'function') return await query.populate('equipo').populate('evaluacion') as unknown as RoundRecord;
     return await query as unknown as RoundRecord | null;
   }
-  async findByPublicToken(token: string) { return resolveMongooseResult<RoundRecord | null>(InstanciaEvaluacion.findOne({ tokenPublico: token })); }
-  async insert(record: NewRoundRecord) { return plainRecord<RoundRecord>(await new InstanciaEvaluacion(record).save()); }
+  async findByPublicToken(token: string) { return guardValue('instancias', await resolveMongooseResult<RoundRecord | null>(InstanciaEvaluacion.findOne({ tokenPublico: token }))); }
+  async insert(record: NewRoundRecord) { return guardValue('instancias', plainRecord<RoundRecord>(await new InstanciaEvaluacion(record).save())); }
   async listByTeam(teamId: string) {
-    return resolveMongooseResult<RoundRecord[]>(InstanciaEvaluacion.find({ equipo: teamId }).sort({ activadoEn: -1 }));
+    return guardValue('instancias', await resolveMongooseResult<RoundRecord[]>(InstanciaEvaluacion.find({ equipo: teamId }).sort({ activadoEn: -1 })));
   }
   async listByTeamAndEvaluation(teamId: string, evaluationId: string) {
-    return resolveMongooseResult<RoundRecord[]>(InstanciaEvaluacion.find({ equipo: teamId, evaluacion: evaluationId }).sort({ activadoEn: 1 }));
+    return guardValue('instancias', await resolveMongooseResult<RoundRecord[]>(InstanciaEvaluacion.find({ equipo: teamId, evaluacion: evaluationId }).sort({ activadoEn: 1 })));
   }
-  async updateState(id: string, estado: RoundRecord['estado']) { return resolveMongooseResult<RoundRecord | null>(InstanciaEvaluacion.findByIdAndUpdate(id, { estado }, { new: true })); }
+  async updateState(id: string, estado: RoundRecord['estado']) { return guardValue('instancias', await resolveMongooseResult<RoundRecord | null>(InstanciaEvaluacion.findByIdAndUpdate(id, { estado }, { new: true }))); }
 }
 
 export const roundRepository = (): RoundRepository => isLocalStorage() ? new JsonRoundRepository() : new MongoRoundRepository();

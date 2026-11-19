@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { getEstadoActualDashboard } from './services/dashboard.service';
 import { getHistoricoPorEquipoYEvaluacion } from './services/historico.service';
-import { editarEvaluacionService, eliminarEvaluacionPorIdService } from './services/evaluacion.service';
+import { crearEvaluacionService, editarEvaluacionService, eliminarEvaluacionPorIdService, listarEvaluacionesService } from './services/evaluacion.service';
 import { agregarMiembroService, actualizarEquipoService, archivarEquipoService, crearEquipoService, listarEquiposPorUsuarioService, quitarMiembroService } from './services/equipo.service';
 import { crearInstanciaEvaluacionService, listarInstanciasPorEquipoService, obtenerInstanciaPorIdService, obtenerRondaPublicaService, cerrarInstanciaEvaluacionService } from './services/instancia.service';
 import { crearRespuestaService } from './services/respuesta.service';
@@ -53,11 +53,14 @@ async function run() {
     saveLocal('equipos', { _id: 'equipo-1', nombre: 'Equipo local', creadoPor: 'usuario-1', miembros: [], activo: true, creadoEn: '2026-01-01T00:00:00.000Z' });
     saveLocal('evaluaciones', evaluation);
     saveLocal('instancias', { _id: 'ronda-1', equipo: 'equipo-1', evaluacion: 'evaluacion-1', activadoEn: '2026-01-01T12:00:00.000Z', cantidadEsperada: 4, modoRespuesta: 'anonima', minimoAnonimato: 3, estado: 'activa' });
+    saveLocal('instancias', { _id: 'ronda-vieja', equipo: 'equipo-viejo', evaluacion: 'evaluacion-1', activadoEn: '2025-01-01T12:00:00.000Z', cantidadEsperada: 1, modoRespuesta: 'anonima', minimoAnonimato: 1, estado: 'activa' });
+    saveLocal('respuestas', { _id: 'respuesta-vieja', instanciaEvaluacion: 'ronda-vieja', respuestas: [{ indicadorId: 'apoyo', valor: 4 }, { indicadorId: 'comentario', texto: 'Comentario ya guardado' }] });
     saveLocal('respuestas', response('respuesta-1', 5, 1, 'Más espacios de coordinación'));
     saveLocal('respuestas', response('respuesta-2', 4, 2, 'Objetivos más claros'));
     saveLocal('respuestas', response('respuesta-3', 3, 3, 'Mejor documentación'));
 
     const nuevoEquipo = await crearEquipoService({ nombre: 'Equipo temporal', creadoPor: 'usuario-1' });
+    assert.deepEqual(await listarInstanciasPorEquipoService(nuevoEquipo._id, 'usuario-1'), []);
     assert.equal((await actualizarEquipoService(nuevoEquipo._id, 'otro-usuario', { nombre: 'Intrusión' })), null);
     assert.equal((await actualizarEquipoService(nuevoEquipo._id, 'usuario-1', { nombre: 'Equipo actualizado' }))?.nombre, 'Equipo actualizado');
     assert.ok(await agregarMiembroService(nuevoEquipo._id, 'usuario-1', 'persona@example.com'));
@@ -67,18 +70,36 @@ async function run() {
     assert.equal((await listarEquiposPorUsuarioService('usuario-1')).some(item => item._id === nuevoEquipo._id), false);
 
     const rondaIndividual: any = await crearInstanciaEvaluacionService({ evaluacionId: 'evaluacion-1', alcance: 'individual', activadoEn: new Date('2026-02-01T12:00:00.000Z'), cantidadEsperada: 1 }, 'usuario-1');
+    assert.equal(rondaIndividual.minimoAnonimato, 3);
     assert.match(String(rondaIndividual.tokenPublico), /^[A-Za-z0-9_-]{43}$/);
-    assert.equal((await obtenerRondaPublicaService(String(rondaIndividual.tokenPublico))).titulo, 'Clima');
+    const publica: any = await obtenerRondaPublicaService(String(rondaIndividual.tokenPublico));
+    assert.equal(publica.titulo, 'Clima');
+    assert.deepEqual(publica.secciones[0].indicadores.map((item: { direccion: string }) => item.direccion), ['positiva', 'negativa', 'positiva', 'positiva']);
     assert.equal(String((await obtenerInstanciaPorIdService(String(rondaIndividual._id), 'usuario-1')).evaluacionId), 'evaluacion-1');
     await assertInstanceOwner('usuario-1', String(rondaIndividual._id));
     await assert.rejects(() => assertInstanceOwner('otro-usuario', String(rondaIndividual._id)), /permiso/);
     const primeraRespuesta: any = await crearRespuestaService({ tokenPublico: String(rondaIndividual.tokenPublico), idempotencyKey: 'respuesta-demo-2026-01', respuestas: [{ indicadorId: 'apoyo', valor: 5 }, { indicadorId: 'friccion', valor: 1 }, { indicadorId: 'comentario', texto: 'Flujo por repositorios' }] });
+    const protegida = await getEstadoActualDashboard(String(rondaIndividual._id));
+    assert.equal(protegida.privacidad?.protegido, true);
+    assert.equal(protegida.indiceGlobal, 0);
+    assert.equal(JSON.stringify(protegida).includes('Flujo por repositorios'), false);
     const reintento: any = await crearRespuestaService({ tokenPublico: String(rondaIndividual.tokenPublico), idempotencyKey: 'respuesta-demo-2026-01', respuestas: [{ indicadorId: 'apoyo', valor: 1 }, { indicadorId: 'friccion', valor: 5 }, { indicadorId: 'comentario', texto: 'duplicado' }] });
     assert.equal(reintento._id, primeraRespuesta._id, 'un reintento idempotente no debe crear otra respuesta');
+    await crearRespuestaService({ tokenPublico: String(rondaIndividual.tokenPublico), idempotencyKey: 'respuesta-demo-2026-02', respuestas: [{ indicadorId: 'apoyo', valor: 5 }, { indicadorId: 'friccion', valor: 1 }, { indicadorId: 'comentario', texto: 'Segunda mirada' }] });
+    await crearRespuestaService({ tokenPublico: String(rondaIndividual.tokenPublico), idempotencyKey: 'respuesta-demo-2026-03', respuestas: [{ indicadorId: 'apoyo', valor: 5 }, { indicadorId: 'friccion', valor: 1 }, { indicadorId: 'comentario', texto: 'Tercera mirada' }] });
+    const visible = await getEstadoActualDashboard(String(rondaIndividual._id));
+    assert.equal(visible.privacidad?.protegido, false);
+    assert.equal(visible.indiceGlobal, 90);
+    assert.equal(JSON.stringify(visible).includes('Flujo por repositorios'), true);
     await cerrarInstanciaEvaluacionService(String(rondaIndividual._id), 'usuario-1');
     await assert.rejects(() => obtenerRondaPublicaService(String(rondaIndividual.tokenPublico)), /no disponible/);
     const rondasEquipo: any[] = await listarInstanciasPorEquipoService('equipo-1', 'usuario-1');
     assert.equal(rondasEquipo[0].evaluacion.titulo, 'Clima');
+
+    const guardada = await getEstadoActualDashboard('ronda-vieja');
+    assert.equal(guardada.privacidad?.minimoRespuestas, 1);
+    assert.equal(guardada.privacidad?.protegido, false);
+    assert.equal(JSON.stringify(guardada).includes('Comentario ya guardado'), true);
 
     const dashboard = await getEstadoActualDashboard('ronda-1');
     assert.equal(dashboard.equipo, 'Equipo local');
@@ -93,6 +114,15 @@ async function run() {
     assert.equal(history.historico[0].indiceGlobal, 70);
     assert.equal(history.seguimiento[0].analisis.length, 0);
     assert.equal(history.seguimiento[0].acciones.length, 0);
+
+    const seccionPropia = { titulo: 'Clima', ponderacion: 100, indicadores: [{ id: 'a', texto: 'Hay claridad', tipo: 'cuantitativo' as const, direccion: 'positiva' as const }] };
+    const propia: any = await crearEvaluacionService({ titulo: 'Pulso del equipo', creadoPor: 'usuario-1', equipoId: 'equipo-1', secciones: [seccionPropia] });
+    assert.equal(propia.equipoId, 'equipo-1');
+    assert.equal(getLocal<any>('evaluaciones', String(propia._id))?.equipoId, 'equipo-1');
+    const listadas = await listarEvaluacionesService('usuario-1');
+    assert.equal(listadas.some((item) => item.equipoId === 'equipo-1'), true);
+    await assert.rejects(() => crearEvaluacionService({ titulo: 'Ajeno', creadoPor: 'usuario-1', equipoId: 'no-existe', secciones: [seccionPropia] }), /equipo/);
+    assert.equal(getLocal<any>('evaluaciones', 'evaluacion-1')?.equipoId, undefined);
 
     const nuevaVersion: any = await editarEvaluacionService('evaluacion-1', { descripcion: 'Versión ajustada' }, 'usuario-1');
     assert.notEqual(String(nuevaVersion._id), 'evaluacion-1');

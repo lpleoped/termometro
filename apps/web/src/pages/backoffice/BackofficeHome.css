@@ -20,4 +20,8 @@
 .empty-state { margin: 2rem auto; max-width: 720px; }
 .empty-state-icon { align-items: center; background: #dbeafe; border-radius: 50%; color: #2563eb; display: flex; font-size: 2rem; height: 3.5rem; justify-content: center; margin: 0 auto 1rem; width: 3.5rem; }
 .empty-state-form { max-width: 560px; }
+.ficha-siguiente { max-width: 720px; }
+.ajustar-equipo { margin-top: 1.75rem; }
+.ajustar-equipo > summary { color: #475569; cursor: pointer; font-weight: 600; width: fit-content; }
+.ajustar-equipo[open] { border-top: 1px solid #e9eef5; padding-top: 1rem; }
 @media (max-width: 575px) { .round-empty, .round-row { align-items: flex-start; flex-direction: column; } .round-empty .btn, .round-row .btn { width: 100%; } .team-actions { width: 100%; justify-content: space-between; } }
