@@ -103,18 +103,26 @@ jobs:
           $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
           $dir = "apps/desktop/release-$version"
           if (-not (Test-Path $dir)) { throw "No existe $dir" }
+          $selected = @(Get-ChildItem $dir | Where-Object { $_.Name -like '*.exe' -or $_.Name -like '*.blockmap' -or $_.Name -eq 'latest.yml' })
+          if (-not ($selected | Where-Object { $_.Extension -eq '.exe' })) { throw "No hay instalador .exe en $dir" }
           Get-ChildItem $dir | Select-Object Name, Length
-          "dir=$dir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $utf8 = New-Object System.Text.UTF8Encoding $false
+          $root = (Get-Location).Path
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "dir=$dir`n", $utf8)
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "files<<EOF`n", $utf8)
+          foreach ($file in $selected) {
+            $relative = ($file.FullName.Substring($root.Length) -replace '^[\\/]+', '') -replace '\\', '/'
+            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$relative`n", $utf8)
+          }
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "EOF`n", $utf8)
 
       - name: Upload installer artifact (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: |
-            ${{ steps.artifacts.outputs.dir }}/*.exe
-            ${{ steps.artifacts.outputs.dir }}/*.blockmap
-            ${{ steps.artifacts.outputs.dir }}/latest.yml
+          path: ${{ steps.artifacts.outputs.files }}
+          if-no-files-found: error
           retention-days: 7
 
       - name: Publish GitHub Release
@@ -126,7 +134,7 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
           body: |
             ## Instalador Windows
 
@@ -137,9 +145,6 @@ jobs:
             - Los datos locales del usuario no se borran al actualizar con el instalador
 
             Guía: [RELEASE.md](https://github.com/lpleoped/termometro/blob/main/RELEASE.md)
-          files: |
-            ${{ steps.artifacts.outputs.dir }}/*.exe
-            ${{ steps.artifacts.outputs.dir }}/*.blockmap
-            ${{ steps.artifacts.outputs.dir }}/latest.yml
+          files: ${{ steps.artifacts.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
