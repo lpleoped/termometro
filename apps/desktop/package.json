@@ -1,16 +1,15 @@
 {
   "name": "@termometro/desktop",
   "private": true,
-  "version": "0.0.18",
+  "version": "0.0.21",
   "description": "Termómetro de Equipo — diagnóstico de equipos",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "npm run build && electron .",
-    "prepare:runtime": "npm install --omit=dev --prefix .runtime",
-    "package:win": "npm run build && npm run prepare:runtime && node scripts/package.cjs",
-    "test": "npm run build && node --test tests/update-flow.test.cjs",
-    "package:win:dir": "npm run build && npm run prepare:runtime && electron-builder --win dir"
+    "package:win": "npm run build && node scripts/package.cjs",
+    "test": "npm run build && node --test tests/update-flow.test.cjs tests/package-runtime.test.cjs",
+    "package:win:dir": "npm run build && node scripts/package.cjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.14",
