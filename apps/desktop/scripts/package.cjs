@@ -33,6 +33,7 @@ const packed = {
 process.stderr.write(`package-size ${JSON.stringify(packed)}\n`);
 fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '95390c' }, body: JSON.stringify({ sessionId: '95390c', runId: 'post-fix', hypothesisId: 'C', location: 'apps/desktop/scripts/package.cjs', message: 'tamaño a empaquetar sin recompresión', data: packed, timestamp: Date.now() }) }).catch(() => {});
 // #endregion
+
 let publish;
 if (updateUrl) {
   const url = new URL(updateUrl);
