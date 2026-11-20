@@ -56,7 +56,7 @@ async function responder(browser: Browser, url: string) {
   const pagina = await contexto.newPage();
   try {
     await pagina.goto(url, { waitUntil: 'domcontentloaded' });
-    await pagina.getByRole('button', { name: 'Empezar evaluación' }).click();
+    await pagina.getByRole('button', { name: 'Empezar', exact: true }).click();
     await pagina.getByRole('radio', { name: '5' }).click();
     await pagina.getByRole('button', { name: 'Revisar y enviar' }).click();
     await pagina.getByRole('button', { name: 'Enviar respuestas' }).click();
@@ -119,7 +119,7 @@ test('camino a mano: equipo, cuestionario que suma 100, ronda, tres respuestas e
     await page.getByLabel('Nombre del cuestionario').fill('Pulso de claridad');
     await page.getByLabel('Nombre de la sección').fill('Trabajo');
     await page.getByLabel('Peso de la sección').fill('100');
-    await page.getByLabel('Pregunta').fill('Tenemos claridad sobre el trabajo');
+    await page.getByLabel('Pregunta', { exact: true }).fill('Tenemos claridad sobre el trabajo');
     await expect(page.getByRole('button', { name: 'Mejor' })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByText(/Tienen que sumar 100/)).toHaveCount(0);
     await page.getByRole('button', { name: 'Guardar el cuestionario' }).click();
@@ -130,7 +130,8 @@ test('camino a mano: equipo, cuestionario que suma 100, ronda, tres respuestas e
     await salud;
 
     await page.getByLabel('Cuántas personas deberían responder').fill('3');
-    await expect(page.getByLabel('Mínimo de respuestas para mostrar resultados')).toHaveValue('3');
+    await page.getByText('Ajustar esta ronda').click();
+    await expect(page.getByLabel('Mínimo para mostrar el resultado')).toHaveValue('3');
     await page.getByRole('button', { name: 'Abrir la ronda' }).click();
     await page.getByRole('button', { name: 'Solo en esta computadora' }).click();
 
