@@ -1,7 +1,7 @@
 {
   "name": "@termometro/desktop",
   "private": true,
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "Termómetro de Equipo — diagnóstico de equipos",
   "main": "dist/main.js",
   "scripts": {

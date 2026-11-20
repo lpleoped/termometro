@@ -70,6 +70,43 @@ if (runtimeFiles > 8000) {
   throw new Error(`El runtime a empaquetar tiene ${runtimeFiles} archivos. No se arma el instalador.`);
 }
 
+// #region agent log
+function surveyTree(dir) {
+  let files = 0;
+  let bytes = 0;
+  let links = 0;
+  const linkSamples = [];
+  const stack = [dir];
+  while (stack.length) {
+    const current = stack.pop();
+    let entries = [];
+    try { entries = fs.readdirSync(current, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      const full = path.join(current, entry.name);
+      let stat;
+      try { stat = fs.lstatSync(full); } catch { continue; }
+      if (stat.isSymbolicLink()) {
+        links += 1;
+        if (linkSamples.length < 8) {
+          let target = '';
+          try { target = fs.readlinkSync(full); } catch { target = '?'; }
+          linkSamples.push({ path: path.relative(dir, full), target });
+        }
+        continue;
+      }
+      if (stat.isDirectory()) stack.push(full);
+      else if (stat.isFile()) { files += 1; bytes += stat.size; }
+    }
+  }
+  return { files, bytes, links, linkSamples };
+}
+function reportTree(message, data) {
+  process.stderr.write(`${message} ${JSON.stringify(data)}\n`);
+  fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '95390c' }, body: JSON.stringify({ sessionId: '95390c', runId: 'post-fix', hypothesisId: 'G', location: 'apps/desktop/scripts/package.cjs', message, data, timestamp: Date.now() }) }).catch(() => {});
+}
+reportTree('runtime-copy', surveyTree(runtimeCopy));
+// #endregion
+
 let publish;
 if (updateUrl) {
   const url = new URL(updateUrl);
@@ -93,5 +130,8 @@ build({
       },
     ],
     ...(publish ? { publish } : {}),
+    afterPack: async context => {
+      reportTree('unpacked-size', { dir: context.appOutDir, ...surveyTree(context.appOutDir) });
+    },
   },
 }).catch(error => { console.error(error); process.exitCode = 1; });
