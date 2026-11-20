@@ -376,7 +376,7 @@ const AltaEvaluacion = () => {
                     </div>
                     <div className="mb-3">
                       <div className="revision-pesos d-flex mb-2" aria-hidden="true">{secciones.map((item, indice) => <div key={indice} style={{ width: `${Number(item.ponderacion) || 0}%`, background: colores[indice % colores.length], opacity: indice === sidx ? 1 : 0.35 }} />)}</div>
-                      <label htmlFor={`peso-${sidx}`} className="form-label">Parte de esta sección</label>
+                      <label htmlFor={`peso-${sidx}`} className="form-label">Peso de la sección</label>
                       <input
                         id={`peso-${sidx}`}
                         type="number"
