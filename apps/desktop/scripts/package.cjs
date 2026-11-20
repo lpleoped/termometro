@@ -4,35 +4,72 @@ const path = require('node:path');
 const { version } = require('../package.json');
 const updateUrl = process.env.TERMOMETRO_UPDATE_URL;
 
-// #region agent log
-function bytesOf(dir) {
-  if (!fs.existsSync(dir)) return { exists: false, bytes: 0 };
-  let bytes = 0;
+const desktopRoot = path.resolve(__dirname, '..');
+const runtimeModules = path.join(desktopRoot, '.runtime', 'node_modules');
+const runtimeCopy = path.join(desktopRoot, '.pack-modules');
+
+function copyInside(from, to, boundary) {
+  const stat = fs.lstatSync(from);
+  if (stat.isSymbolicLink()) {
+    const target = fs.realpathSync(from);
+    if (target !== boundary && !target.startsWith(boundary + path.sep)) return;
+    copyInside(target, to, boundary);
+    return;
+  }
+  if (stat.isDirectory()) {
+    fs.mkdirSync(to, { recursive: true });
+    for (const name of fs.readdirSync(from)) {
+      if (name === 'node_modules') continue;
+      copyInside(path.join(from, name), path.join(to, name), boundary);
+    }
+    return;
+  }
+  if (stat.isFile()) {
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(from, to);
+  }
+}
+
+function materializeRuntime() {
+  fs.rmSync(runtimeCopy, { recursive: true, force: true });
+  fs.mkdirSync(runtimeCopy, { recursive: true });
+  for (const name of fs.readdirSync(runtimeModules)) {
+    if (name === '.bin') continue;
+    const from = path.join(runtimeModules, name);
+    const top = fs.lstatSync(from);
+    if (name.startsWith('@') && top.isDirectory() && !top.isSymbolicLink()) {
+      for (const child of fs.readdirSync(from)) {
+        const source = path.join(from, child);
+        copyInside(source, path.join(runtimeCopy, name, child), fs.realpathSync(source));
+      }
+      continue;
+    }
+    copyInside(from, path.join(runtimeCopy, name), fs.realpathSync(from));
+  }
+}
+
+function countFiles(dir) {
+  let count = 0;
   const stack = [dir];
   while (stack.length) {
     const current = stack.pop();
-    let entries = [];
-    try { entries = fs.readdirSync(current, { withFileTypes: true }); } catch { continue; }
-    for (const entry of entries) {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const full = path.join(current, entry.name);
+      if (entry.isSymbolicLink()) throw new Error(`Quedó un enlace en el runtime empaquetado: ${full}`);
       if (entry.isDirectory()) stack.push(full);
-      else if (entry.isFile()) {
-        try { bytes += fs.statSync(full).size; } catch { /* unreadable file */ }
-      }
+      else if (entry.isFile()) count += 1;
     }
   }
-  return { exists: true, bytes };
+  return count;
 }
-const packed = {
-  compression: 'store',
-  api: bytesOf(path.resolve(__dirname, '../../api/dist')),
-  web: bytesOf(path.resolve(__dirname, '../../web/dist')),
-  runtime: bytesOf(path.resolve(__dirname, '../.runtime/node_modules')),
-  shared: bytesOf(path.resolve(__dirname, '../../../packages/shared')),
-};
-process.stderr.write(`package-size ${JSON.stringify(packed)}\n`);
-fetch('http://127.0.0.1:7896/ingest/1bc53dc5-4602-4767-b8ad-8a1bbeccd6eb', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '95390c' }, body: JSON.stringify({ sessionId: '95390c', runId: 'post-fix', hypothesisId: 'C', location: 'apps/desktop/scripts/package.cjs', message: 'tamaño a empaquetar sin recompresión', data: packed, timestamp: Date.now() }) }).catch(() => {});
-// #endregion
+
+materializeRuntime();
+const runtimeFiles = countFiles(runtimeCopy);
+console.log(`runtime empaquetado: ${runtimeFiles} archivos`);
+if (runtimeFiles > 8000) {
+  throw new Error(`El runtime a empaquetar tiene ${runtimeFiles} archivos. No se arma el instalador.`);
+}
+
 let publish;
 if (updateUrl) {
   const url = new URL(updateUrl);
@@ -43,5 +80,18 @@ if (updateUrl) {
 build({
   targets: Platform.WINDOWS.createTarget('nsis'),
   publish: 'never',
-  config: { directories: { output: 'release-' + version }, ...(publish ? { publish } : {}) },
+  config: {
+    directories: { output: 'release-' + version },
+    extraResources: [
+      { from: '../api/dist', to: 'api/dist' },
+      { from: '../web/dist', to: 'web/dist' },
+      { from: '.pack-modules', to: 'node_modules' },
+      {
+        from: '../../packages/shared',
+        to: 'node_modules/@termometro/shared',
+        filter: ['**/*', '!**/node_modules/**'],
+      },
+    ],
+    ...(publish ? { publish } : {}),
+  },
 }).catch(error => { console.error(error); process.exitCode = 1; });
