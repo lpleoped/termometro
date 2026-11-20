@@ -1,4 +1,4 @@
-# Termómetro de Equipo
+# Termómetro
 
 Diagnóstico de **clima / estado de equipos**: evaluaciones Likert por secciones ponderadas, índice 0–100, participación, histórico y plan de acción. El tono de lo escrito, cuando hay comentarios suficientes, es una señal agregada. No diagnostica emociones ni equivale a una lectura de reunión.
 
