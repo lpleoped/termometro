@@ -94,22 +94,7 @@ jobs:
             Remove-Item Env:TERMOMETRO_UPDATE_URL -ErrorAction SilentlyContinue
             Write-Host 'Sin certificado: instalador publicado sin canal de auto-update.'
           }
-          $defender = 'no-aplicado'
-          try {
-            Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction Stop
-            $defender = 'realtime-off'
-          } catch {
-            $defender = "realtime-error: $($_.Exception.Message)"
-          }
-          Write-Host "defender $defender"
-          $pkg = Start-Process -FilePath 'cmd.exe' -ArgumentList '/d','/c','npm run package:win -w @termometro/desktop' -WorkingDirectory (Get-Location) -NoNewWindow -PassThru
-          while (-not $pkg.HasExited) {
-            Start-Sleep -Seconds 15
-            $archives = @(Get-ChildItem -Path 'apps/desktop' -Recurse -Filter '*.nsis.7z' -ErrorAction SilentlyContinue)
-            if ($archives.Count -eq 0) { Write-Host 'archive-growth bytes=0' }
-            else { $archives | ForEach-Object { Write-Host "archive-growth bytes=$($_.Length) name=$($_.Name)" } }
-          }
-          if ($pkg.ExitCode -ne 0) { exit $pkg.ExitCode }
+          npm run package:win -w @termometro/desktop
 
       - name: Locate artifacts
         id: artifacts
