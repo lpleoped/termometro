@@ -3,8 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import LayoutBackoffice from '../../components/layouts/LayoutBackoffice';
 import { getEvaluaciones, type Evaluacion } from '../../services/evaluacionService';
 import { getEquipos } from '../../services/equipoService';
-import { crearInstancia, getInstanciaById } from '../../services/instanciaService';
-import { getEnlacesPublicos } from '../../services/instanciaService';
+import { abrirRedLocal, crearInstancia, getEnlacesPublicos, getInstanciaById } from '../../services/instanciaService';
+import { ordenarCuestionarios } from '../../domain/cuestionariosEquipo';
+import { direccionesDeRed, linkDeLaPagina } from '../../domain/link-respuesta';
 import QRCode from 'qrcode';
 
 interface EquipoOpcion {
@@ -18,6 +19,7 @@ interface CuestionarioOpcion {
   titulo: string;
   version?: string;
   tipo?: string;
+  equipoId?: string;
 }
 
 interface RondaAbierta {
@@ -74,9 +76,18 @@ function cuestionariosDe(lista: Evaluacion[]): CuestionarioOpcion[] {
         titulo: evaluacion.titulo,
         version: extra.version,
         tipo: evaluacion.tipo,
+        equipoId: evaluacion.equipoId,
       };
     })
     .filter((cuestionario) => cuestionario.id && cuestionario.titulo);
+}
+
+function elegirCuestionario(opciones: CuestionarioOpcion[], pedido: string | null, equipoId: string): string {
+  if (pedido && opciones.some((opcion) => opcion.id === pedido)) return pedido;
+  const propio = opciones.find((opcion) => opcion.equipoId === equipoId);
+  if (propio) return propio.id;
+  if (opciones.length === 1) return opciones[0].id;
+  return '';
 }
 
 function elegir(opciones: { id: string }[], pedido: string | null): string {
@@ -86,8 +97,22 @@ function elegir(opciones: { id: string }[], pedido: string | null): string {
 }
 
 function cantidadInicial(equipo: EquipoOpcion | undefined): string {
-  if (!equipo || equipo.miembros < 1) return '';
+  if (!equipo) return '';
+  if (equipo.miembros < 1) return '1';
   return String(equipo.miembros);
+}
+
+function ConfirmacionRed({ ocupado, onPermitir, onSoloAqui }: { ocupado: boolean; onPermitir: () => void; onSoloAqui: () => void }) {
+  return (
+    <div className="alert alert-warning" role="alertdialog" aria-labelledby="red-local-titulo">
+      <h3 id="red-local-titulo" className="h6 mb-2">Los celulares de esta red van a poder responder</h3>
+      <p className="small mb-3">Termómetro abre el puerto de esta computadora en la red local. Quien esté en el mismo Wi-Fi puede abrir la encuesta. El panel y los resultados siguen solo en esta computadora.</p>
+      <div className="d-flex flex-wrap gap-2">
+        <button type="button" className="btn btn-warning btn-sm" disabled={ocupado} onClick={onPermitir}>Permitir en esta red</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" disabled={ocupado} onClick={onSoloAqui}>Solo en esta computadora</button>
+      </div>
+    </div>
+  );
 }
 
 function Cargando({ texto }: { texto: string }) {
@@ -112,12 +137,17 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
   const [copiado, setCopiado] = useState(false);
   const [copiaManual, setCopiaManual] = useState(false);
   const [enlaces, setEnlaces] = useState<string[]>([]);
+  const [redPermitida, setRedPermitida] = useState(false);
   const [qr, setQr] = useState('');
   const [networkWarning, setNetworkWarning] = useState<{
     show: boolean;
     isPublic: boolean;
     lanUnhealthy: boolean;
   }>({ show: false, isPublic: false, lanUnhealthy: false });
+  const [soloEstaComputadora, setSoloEstaComputadora] = useState(false);
+  const [confirmarRed, setConfirmarRed] = useState(false);
+  const [abriendoRed, setAbriendoRed] = useState(false);
+  const [errorRed, setErrorRed] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -126,13 +156,23 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
     setCopiado(false);
     setCopiaManual(false);
     setNetworkWarning({ show: false, isPublic: false, lanUnhealthy: false });
+    setRedPermitida(false);
+    setErrorRed(false);
     try {
       const instancia = await getInstanciaById(instanciaId);
-      const [equiposRaw, evaluaciones, publicados] = await Promise.all([getEquipos(), getEvaluaciones(), getEnlacesPublicos(instanciaId)]);
+      const [equiposRaw, evaluaciones, publicados, salud] = await Promise.all([
+        getEquipos(),
+        getEvaluaciones(),
+        getEnlacesPublicos(instanciaId),
+        fetch('/api/health').then((respuesta) => respuesta.ok ? respuesta.json() : null).catch(() => null),
+      ]);
+      const enRed = salud?.networkListening === 'lan';
+      setRedPermitida(enRed);
+      setSoloEstaComputadora(salud?.storage === 'json' && !enRed);
       
-      // Check network status (desktop only, best-effort)
+      // El aviso de firewall solo aplica cuando la red ya fue aceptada.
       try {
-        const networkStatus = await fetch('/api/network-status').then(r => r.ok ? r.json() : null);
+        const networkStatus = enRed ? await fetch('/api/network-status').then(r => r.ok ? r.json() : null) : null;
         if (networkStatus && networkStatus.isDesktop) {
           const isPublic = networkStatus.profileType === 'Public';
           const lanUnhealthy = !networkStatus.lanHealthy;
@@ -163,10 +203,10 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
         minimoAnonimato: Number(instancia.minimoAnonimato) || 1,
         tokenPublico: publicados.token,
       });
-      // Support new URL format with interface name (backwards compatible)
-      const urlList = publicados.urls.map((item: any) => typeof item === 'string' ? item : item.url);
+      const urlList = publicados.urls.map((item: { url?: string } | string) => typeof item === 'string' ? item : item.url || '');
       setEnlaces(urlList);
-      setQr(await QRCode.toDataURL(urlList.find((url: string) => !url.includes('localhost')) || urlList[0]));
+      const principal = linkDeLaPagina(window.location.origin, publicados.token || '');
+      setQr(principal ? await QRCode.toDataURL(principal) : '');
     } catch (error) {
       setRonda(null);
       if (esNoEncontrado(error)) setNoEncontrada(true);
@@ -180,7 +220,22 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
     cargar();
   }, [cargar]);
 
-  const link = enlaces.find((url) => !url.includes('localhost')) || enlaces[0] || `${window.location.origin}/r/${ronda?.tokenPublico || ''}`;
+  const link = linkDeLaPagina(window.location.origin, ronda?.tokenPublico || '');
+  const enLaRed = direccionesDeRed(enlaces, redPermitida, link);
+
+  const permitirRed = async () => {
+    setAbriendoRed(true);
+    setErrorRed(false);
+    try {
+      await abrirRedLocal();
+      setConfirmarRed(false);
+      await cargar();
+    } catch {
+      setErrorRed(true);
+    } finally {
+      setAbriendoRed(false);
+    }
+  };
 
   const copiar = async () => {
     setCopiaManual(false);
@@ -203,7 +258,7 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
         <div className="container py-4">
           <div className="alert alert-warning" role="alert">
             <p className="mb-3">No se encontró la ronda.</p>
-            <Link to="/backoffice/publicar-evaluacion">Abrir la ronda</Link>
+            <Link className="btn btn-sm btn-outline-secondary" to="/backoffice/publicar-evaluacion">Abrir la ronda</Link>
           </div>
         </div>
       </LayoutBackoffice>
@@ -242,6 +297,17 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
             : `Deberían responder ${ronda.cantidadEsperada} personas.`}
         </p>
         <p className="small text-muted mb-4">Participación: 0 de {ronda.cantidadEsperada} respuestas</p>
+        {soloEstaComputadora && (
+          <div className="mb-4">
+            <p className="small mb-2">Este link solo se abre en esta computadora.</p>
+            {errorRed && <p className="text-danger small" role="alert">No se pudo abrir la encuesta en la red local.</p>}
+            {confirmarRed ? (
+              <ConfirmacionRed ocupado={abriendoRed} onPermitir={() => void permitirRed()} onSoloAqui={() => setConfirmarRed(false)} />
+            ) : (
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setConfirmarRed(true)}>Permitir respuestas en esta red</button>
+            )}
+          </div>
+        )}
         {networkWarning.show && (
           <div className="alert alert-warning mb-4" role="alert">
             <div className="d-flex gap-2">
@@ -267,7 +333,7 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
                   <li>Abre <strong>Configuración de Windows</strong> → <strong>Red e Internet</strong></li>
                   <li>Selecciona tu conexión Wi-Fi actual</li>
                   <li>En <strong>&quot;Tipo de perfil de red&quot;</strong>, cambia de <strong>&quot;Público&quot;</strong> a <strong>&quot;Privado&quot;</strong></li>
-                  <li>Reinstala o actualiza Termómetro de Equipo a la versión 0.0.9 o superior</li>
+                  <li>Reinstala o actualiza Termómetro a la versión 0.0.9 o superior</li>
                   <li>Recarga esta página para verificar</li>
                 </ol>
               </div>
@@ -284,15 +350,15 @@ function RondaLista({ instanciaId }: { instanciaId: string }) {
           readOnly
           value={link}
         />
-        {enlaces.length > 1 && <div className="small text-muted mb-3">Enlaces disponibles en esta computadora: {enlaces.join(' · ')}</div>}
+        {enLaRed.length > 0 && <p className="small text-muted mb-3">En esta red: {enLaRed.join(' · ')}</p>}
         {qr && <div className="text-center mb-3"><img src={qr} alt="Código QR para responder la ronda" width={220} height={220} /></div>}
         {copiaManual && <p className="text-muted">Seleccioná el link y copialo.</p>}
-        <button type="button" className="btn btn-primary" onClick={copiar}>
+        <button type="button" className="btn btn-primary paso-primaria" onClick={copiar}>
           {copiado ? 'Link copiado' : 'Copiar link para el equipo'}
         </button>
         <p className="mt-4 mb-0">
           Cuando respondan, vas a ver el termómetro y la participación{' '}
-          <Link to={`/backoffice/dashboard?instanciaId=${instanciaId}`}>acá</Link>
+          <Link className="btn btn-sm estado-atajo" to={`/backoffice/dashboard?instanciaId=${instanciaId}`}>acá</Link>
           .
         </p>
       </div>
@@ -311,16 +377,18 @@ function AbrirRonda({
   const [equipos, setEquipos] = useState<EquipoOpcion[]>([]);
   const [cuestionarios, setCuestionarios] = useState<CuestionarioOpcion[]>([]);
   const [equipoId, setEquipoId] = useState('');
-  const [alcance, setAlcance] = useState<'equipo' | 'persona' | 'individual'>(equipoPedido ? 'equipo' : 'individual');
+  const [alcance, setAlcance] = useState<'equipo' | 'persona' | 'individual'>('equipo');
   const [evaluadoNombre, setEvaluadoNombre] = useState('');
   const [evaluacionId, setEvaluacionId] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [modoRespuesta, setModoRespuesta] = useState<'anonima' | 'identificada'>('anonima');
-  const [minimoAnonimato, setMinimoAnonimato] = useState('1');
+  const [minimoAnonimato, setMinimoAnonimato] = useState('3');
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(false);
   const [abriendo, setAbriendo] = useState(false);
   const [errorApertura, setErrorApertura] = useState(false);
+  const [escuchaCerrada, setEscuchaCerrada] = useState(false);
+  const [confirmarRed, setConfirmarRed] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -331,16 +399,14 @@ function AbrirRonda({
       const equiposCargados = equiposDe(equiposRaw);
       const cuestionariosCargados = cuestionariosDe(evaluaciones);
       const equipoElegido = elegir(equiposCargados, equipoPedido);
+      const evaluacionElegida = elegirCuestionario(cuestionariosCargados, evaluacionPedida, equipoElegido);
+      const cantidadElegida = equipoElegido ? cantidadInicial(equiposCargados.find((equipo) => equipo.id === equipoElegido)) : '';
       setEquipos(equiposCargados);
       setCuestionarios(cuestionariosCargados);
       setEquipoId(equipoElegido);
-       setAlcance(equipoElegido ? 'equipo' : 'individual');
-      setEvaluacionId(elegir(cuestionariosCargados, evaluacionPedida));
-       setCantidad(equipoElegido ? cantidadInicial(equiposCargados.find((equipo) => equipo.id === equipoElegido)) : '1');
-       if (!equipoElegido) {
-         setModoRespuesta('identificada');
-         setMinimoAnonimato('1');
-       }
+      setAlcance('equipo');
+      setEvaluacionId(evaluacionElegida);
+      setCantidad(cantidadElegida);
     } catch {
       setEquipos([]);
       setCuestionarios([]);
@@ -352,11 +418,19 @@ function AbrirRonda({
 
   useEffect(() => {
     cargar();
+    fetch('/api/health').then((respuesta) => respuesta.ok ? respuesta.json() : null).then((salud) => {
+      setEscuchaCerrada(salud?.storage === 'json' && salud?.networkListening !== 'lan');
+    }).catch(() => setEscuchaCerrada(false));
   }, [cargar]);
 
   const elegirEquipo = (id: string) => {
     setEquipoId(id);
     setErrorApertura(false);
+    setEvaluacionId((actual) => {
+      const propios = cuestionarios.filter((item) => item.equipoId === id);
+      if (propios.some((item) => item.id === actual)) return actual;
+      return propios[0]?.id || actual;
+    });
     setCantidad(id ? cantidadInicial(equipos.find((equipo) => equipo.id === id)) : '1');
     if (!id) {
       setModoRespuesta('identificada');
@@ -364,16 +438,22 @@ function AbrirRonda({
     }
   };
 
-  const abrir = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!evaluacionId || !cantidadValida(cantidad) || abriendo) return;
+  const publicar = async () => {
+    if (!evaluacionId || !cantidadValida(cantidad)) return;
+    const desdeEquipo = Boolean(equipoPedido && equipos.some((item) => item.id === equipoPedido));
+    const equipoAPublicar = desdeEquipo ? equipoPedido! : equipoId;
+    const alcanceAPublicar = equipoAPublicar
+      ? (alcance === 'individual' ? 'equipo' : alcance)
+      : alcance;
+    if (alcanceAPublicar !== 'individual' && !equipoAPublicar) return;
     setAbriendo(true);
     setErrorApertura(false);
+    setConfirmarRed(false);
     try {
       const creada = await crearInstancia({
-        ...(equipoId ? { equipoId } : {}),
-        alcance,
-        evaluadoNombre: alcance === 'persona' ? evaluadoNombre.trim() : '',
+        ...(equipoAPublicar ? { equipoId: equipoAPublicar } : {}),
+        alcance: alcanceAPublicar,
+        evaluadoNombre: alcanceAPublicar === 'persona' ? evaluadoNombre.trim() : '',
         evaluacionId,
         activadoEn: new Date().toISOString(),
         cantidadEsperada: Number(cantidad),
@@ -387,6 +467,30 @@ function AbrirRonda({
     } catch {
       setErrorApertura(true);
     } finally {
+      setAbriendo(false);
+    }
+  };
+
+  const abrir = (event: FormEvent) => {
+    event.preventDefault();
+    if (!evaluacionId || !cantidadValida(cantidad) || abriendo) return;
+    if (escuchaCerrada) {
+      setConfirmarRed(true);
+      return;
+    }
+    void publicar();
+  };
+
+  const permitirRed = async () => {
+    setAbriendo(true);
+    setErrorApertura(false);
+    try {
+      await abrirRedLocal();
+      setEscuchaCerrada(false);
+      setConfirmarRed(false);
+      await publicar();
+    } catch {
+      setErrorApertura(true);
       setAbriendo(false);
     }
   };
@@ -414,7 +518,7 @@ function AbrirRonda({
         <div className="container py-4">
           <h2 className="fw-bold mb-3">Abrí la ronda</h2>
           <p className="mb-4">Primero creá el equipo.</p>
-          <Link className="btn btn-primary" to="/backoffice/home">
+          <Link className="btn btn-primary paso-primaria" to="/backoffice/home">
             Crear el equipo
           </Link>
         </div>
@@ -428,7 +532,7 @@ function AbrirRonda({
         <div className="container py-4">
           <h2 className="fw-bold mb-3">Abrí la ronda</h2>
           <p className="mb-4">Primero armá el cuestionario.</p>
-          <Link className="btn btn-primary" to="/backoffice/alta-evaluacion">
+          <Link className="btn btn-primary paso-primaria" to={equipoPedido ? `/backoffice/alta-evaluacion?equipoId=${equipoPedido}` : '/backoffice/alta-evaluacion'}>
             Armar el cuestionario
           </Link>
         </div>
@@ -436,26 +540,114 @@ function AbrirRonda({
     );
   }
 
-  const equipo = equipos.find((item) => item.id === equipoId);
-  const cuestionario = cuestionarios.find((item) => item.id === evaluacionId);
-  const mostrarEquipo = alcance !== 'individual';
-  const mostrarCuestionario = cuestionarios.length > 1 && !pedidoValido(cuestionarios, evaluacionPedida);
-  const alcanceValido = alcance !== 'persona' || (Boolean(equipoId) && evaluadoNombre.trim().length > 0);
+  const desdeEquipo = pedidoValido(equipos, equipoPedido);
+  const equipo = equipos.find((item) => item.id === equipoId) || (desdeEquipo ? equipos.find((item) => item.id === equipoPedido) : undefined);
+  const cuestionariosVisibles = ordenarCuestionarios(cuestionarios, equipo?.id || equipoId);
+  const cuestionario = cuestionariosVisibles.find((item) => item.id === evaluacionId);
+  const mostrarEquipo = alcance !== 'individual' && !desdeEquipo;
+  const mostrarCuestionario = !pedidoValido(cuestionariosVisibles, evaluacionPedida) && (cuestionariosVisibles.length > 1 || !evaluacionId);
+  const alcanceValido = alcance === 'individual'
+    ? !desdeEquipo
+    : (Boolean(equipoId || desdeEquipo) && (alcance !== 'persona' || evaluadoNombre.trim().length > 0));
   const listo = Boolean(evaluacionId && cantidadValida(cantidad) && alcanceValido);
+  const vieneArmado = Boolean(
+    (equipoId || desdeEquipo) && evaluacionId
+    && (desdeEquipo || equipos.length === 1)
+    && (pedidoValido(cuestionarios, evaluacionPedida) || cuestionarios.length === 1),
+  );
+  const caminoEquipo = desdeEquipo || vieneArmado;
+  const ajustarAlcance = (nuevoAlcance: 'equipo' | 'persona' | 'individual') => {
+    if (desdeEquipo && nuevoAlcance === 'individual') {
+      setAlcance('equipo');
+      if (equipoPedido) elegirEquipo(equipoPedido);
+      setErrorApertura(false);
+      return;
+    }
+    setAlcance(nuevoAlcance);
+    if (nuevoAlcance === 'individual') elegirEquipo('');
+    else if (!equipoId && (desdeEquipo ? equipoPedido : equipos[0]?.id)) elegirEquipo((desdeEquipo && equipoPedido) || equipos[0].id);
+    setErrorApertura(false);
+  };
+  const ajusteRonda = (
+    <details className="mb-4">
+      <summary>Ajustar esta ronda</summary>
+      <div className="mt-3">
+        <label htmlFor="alcance" className="form-label">Alcance</label>
+        <select id="alcance" className="form-select mb-3" value={alcance === 'individual' && desdeEquipo ? 'equipo' : alcance} onChange={(event) => {
+          ajustarAlcance(event.target.value as 'equipo' | 'persona' | 'individual');
+        }} disabled={abriendo}>
+          <option value="equipo">El equipo</option>
+          <option value="persona">Una persona</option>
+          {!desdeEquipo && <option value="individual">Una sola persona</option>}
+        </select>
+        {alcance === 'persona' && (
+          <div className="mb-3">
+            <label htmlFor="evaluado-nombre" className="form-label">Persona</label>
+            <input id="evaluado-nombre" className="form-control" value={evaluadoNombre} onChange={(event) => setEvaluadoNombre(event.target.value)} disabled={abriendo} />
+          </div>
+        )}
+        <label htmlFor="modo-respuesta" className="form-label">Respuestas</label>
+        <select id="modo-respuesta" className="form-select mb-3" value={modoRespuesta} onChange={(event) => setModoRespuesta(event.target.value as 'anonima' | 'identificada')} disabled={abriendo}>
+          <option value="anonima">Sin nombre</option>
+          <option value="identificada">Identificadas</option>
+        </select>
+        {modoRespuesta === 'anonima' && (
+          <div>
+            <label htmlFor="minimo-anonimato" className="form-label">Mínimo para mostrar el resultado</label>
+            <input id="minimo-anonimato" type="number" min={1} step={1} className="form-control" value={minimoAnonimato} onChange={(event) => setMinimoAnonimato(event.target.value)} disabled={abriendo} />
+          </div>
+        )}
+      </div>
+    </details>
+  );
 
   return (
     <LayoutBackoffice>
       <div className="container py-4">
         <h2 className="fw-bold mb-4">Abrí la ronda</h2>
+        {caminoEquipo ? (
+          <form onSubmit={abrir} noValidate>
+            {equipo && <p className="mb-1">{equipo.nombre}</p>}
+            {mostrarCuestionario ? (
+              <div className="mb-3">
+                <label htmlFor="cuestionario-equipo" className="form-label">Cuestionario</label>
+                <select
+                  id="cuestionario-equipo"
+                  className="form-select"
+                  value={evaluacionId}
+                  onChange={(event) => { setEvaluacionId(event.target.value); setErrorApertura(false); }}
+                  disabled={abriendo}
+                >
+                  <option value="">Elegí el cuestionario</option>
+                  {cuestionariosVisibles.map((item) => (
+                    <option key={item.id} value={item.id}>{item.titulo}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              cuestionario && <p className="mb-3">{cuestionario.titulo}</p>
+            )}
+            <div className="mb-4">
+              <label htmlFor="cantidad-esperada" className="form-label">Cuántas personas deberían responder</label>
+              <input id="cantidad-esperada" type="number" min={1} step={1} className="form-control" value={cantidad} onChange={(event) => { setCantidad(event.target.value); setErrorApertura(false); }} disabled={abriendo} />
+            </div>
+            {ajusteRonda}
+            {errorApertura && <p className="text-danger" role="alert">No se pudo abrir la ronda.</p>}
+            {confirmarRed && (
+              <div className="mb-3">
+                <ConfirmacionRed ocupado={abriendo} onPermitir={() => void permitirRed()} onSoloAqui={() => { setConfirmarRed(false); void publicar(); }} />
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary paso-primaria" disabled={!listo || abriendo}>
+              {abriendo ? 'Abriendo la ronda...' : 'Abrir la ronda'}
+            </button>
+          </form>
+        ) : (
         <form onSubmit={abrir} noValidate>
           <div className="mb-3">
             <label htmlFor="alcance" className="form-label">¿Qué querés evaluar?</label>
             <select id="alcance" className="form-select" value={alcance} onChange={(event) => {
-              const nuevoAlcance = event.target.value as 'equipo' | 'persona' | 'individual';
-              setAlcance(nuevoAlcance);
-              if (nuevoAlcance === 'individual') elegirEquipo('');
-              else if (!equipoId && equipos.length === 1) elegirEquipo(equipos[0].id);
-              setErrorApertura(false);
+              ajustarAlcance(event.target.value as 'equipo' | 'persona' | 'individual');
             }} disabled={abriendo}>
               <option value="equipo">El equipo</option>
               <option value="persona">Una persona evaluada por el equipo</option>
@@ -509,7 +701,7 @@ function AbrirRonda({
                 disabled={abriendo}
               >
                 <option value="">Elegí el cuestionario</option>
-                {cuestionarios.map((item) => (
+                {cuestionariosVisibles.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.titulo}
                   </option>
@@ -546,7 +738,7 @@ function AbrirRonda({
                 <option value="anonima">Anónimas (recomendado)</option>
                 <option value="identificada">Identificadas</option>
               </select>
-              {modoRespuesta === 'anonima' ? <p className="small text-muted mb-0">No se mostrará quién respondió. Los resultados individuales no estarán disponibles y el resumen se habilita al alcanzar {minimoAnonimato} {Number(minimoAnonimato) === 1 ? 'respuesta' : 'respuestas'}.</p> : <p className="small text-muted mb-0">Las respuestas podrán asociarse a una persona. Usá esta opción solo si el equipo fue informado y dio su consentimiento.</p>}
+              {modoRespuesta === 'anonima' ? <p className="small text-muted mb-0">No pedimos el nombre. El resultado agrupado aparece al llegar a {minimoAnonimato} {Number(minimoAnonimato) === 1 ? 'respuesta' : 'respuestas'}. Los comentarios abiertos los leés en el panel.</p> : <p className="small text-muted mb-0">Las respuestas podrán asociarse a una persona. Usá esta opción solo si el equipo fue informado y dio su consentimiento.</p>}
               {modoRespuesta === 'anonima' && <div className="mt-3"><label htmlFor="minimo-anonimato" className="form-label small">Mínimo de respuestas para mostrar resultados</label><input id="minimo-anonimato" type="number" min={1} step={1} className="form-control" value={minimoAnonimato} onChange={(event) => setMinimoAnonimato(event.target.value)} disabled={abriendo} /></div>}
             </div>
           </div>
@@ -557,10 +749,17 @@ function AbrirRonda({
             </p>
           )}
 
-          <button type="submit" className="btn btn-primary" disabled={!listo || abriendo}>
+          {confirmarRed && (
+            <div className="mb-3">
+              <ConfirmacionRed ocupado={abriendo} onPermitir={() => void permitirRed()} onSoloAqui={() => { setConfirmarRed(false); void publicar(); }} />
+            </div>
+          )}
+
+          <button type="submit" className="btn btn-primary paso-primaria" disabled={!listo || abriendo}>
             {abriendo ? 'Abriendo la ronda...' : 'Abrir la ronda'}
           </button>
         </form>
+        )}
       </div>
     </LayoutBackoffice>
   );

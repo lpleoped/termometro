@@ -3,6 +3,7 @@ import { InstanciaEvaluacion } from '../models/InstanciaEvaluacion';
 import { Respuesta } from '../models/Respuesta';
 import { AccionPlan } from '../models/AccionPlan';
 import { AIAnalysis } from '../models/AIAnalysis';
+import { guardValue } from '../domain/persisted-schemas';
 import { deleteLocal, getLocal, isLocalStorage, listLocal, localId, localNow, saveLocal } from '../storage/local-store';
 import { resolveMongooseResult, plainRecord } from './mongoose-result';
 
@@ -15,6 +16,7 @@ export interface EvaluationRecord {
   configuracion?: Record<string, unknown>;
   secciones: Array<Record<string, any>>;
   creadoPor: string;
+  equipoId?: string;
   origenCuestionario?: 'manual' | 'ia';
   revisionHumana?: Record<string, unknown>;
   createdAt?: string | Date;
@@ -52,14 +54,14 @@ class JsonEvaluationRepository implements EvaluationRepository {
 }
 
 class MongoEvaluationRepository implements EvaluationRepository {
-  async findById(id: string) { return resolveMongooseResult<EvaluationRecord | null>(Evaluacion.findById(id)); }
-  async listByOwner(userId: string) { return resolveMongooseResult<EvaluationRecord[]>(Evaluacion.find({ creadoPor: userId })); }
+  async findById(id: string) { return guardValue('evaluaciones', await resolveMongooseResult<EvaluationRecord | null>(Evaluacion.findById(id))); }
+  async listByOwner(userId: string) { return guardValue('evaluaciones', await resolveMongooseResult<EvaluationRecord[]>(Evaluacion.find({ creadoPor: userId }))); }
   async listVersions(title: string, userId: string) {
-    return resolveMongooseResult<EvaluationRecord[]>(Evaluacion.find({ titulo: title, creadoPor: userId }));
+    return guardValue('evaluaciones', await resolveMongooseResult<EvaluationRecord[]>(Evaluacion.find({ titulo: title, creadoPor: userId })));
   }
   async insert(record: NewEvaluationRecord) {
     const saved = await new Evaluacion(record).save();
-    return plainRecord<EvaluationRecord>(saved);
+    return guardValue('evaluaciones', plainRecord<EvaluationRecord>(saved));
   }
   async deleteWithRounds(id: string) {
     const rounds = await InstanciaEvaluacion.find({ evaluacion: id }).select('_id').lean();

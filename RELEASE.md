@@ -1,7 +1,10 @@
 # Publicación por Release
 
-Termómetro de Equipo se distribuye de forma profesional con **GitHub Releases**.
-El código vive en `main`; el instalador Windows solo se publica al crear un tag semver.
+La entrada pública del producto es el repositorio y la beta local (`npm run local`).
+El instalador de Windows es una beta: sin certificado de firma, Windows puede avisar
+que el editor es desconocido y la actualización automática no se enciende.
+
+El código vive en `main`. Un tag semver sigue pudiendo construir y publicar el `.exe`.
 
 ## Modelo
 
@@ -19,13 +22,14 @@ GitHub Release (assets .exe / .blockmap / latest.yml)
 - Push a `main` → CI de build/tests (no publica instalador).
 - Tag `vX.Y.Z` → workflow **Release desktop** publica el Release.
 
-## Primer release (sin certificado todavía)
+## Instalador sin certificado
 
-Podés publicar el instalador sin firma. Windows puede mostrar advertencia de
-editor desconocido; la auto-actualización **no** se habilita hasta tener certificado.
+El workflow publica el `.exe` aunque no haya certificado. En ese caso Windows
+puede mostrar la advertencia de editor desconocido y la auto-actualización
+no se habilita. No es la invitación pública del producto.
 
 ```powershell
-cd "c:\Users\lpleo\OneDrive\Escritorio\Programación\Trabajo\IBM\termometro-de-equipo"
+# Desde la carpeta del repositorio
 
 # 1) Asegurate de estar al día en main
 git checkout main

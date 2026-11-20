@@ -25,9 +25,11 @@ test('context engine applies the item budget and reports omissions', () => {
 });
 
 test('context engine applies the character budget', () => {
-  const result = selectContextCandidates([item({ id: 'large', content: 'x'.repeat(16000) }), item({ id: 'second' })]);
-  assert.deepEqual(result.itemIds, ['second']);
-  assert.equal(result.omittedCount, 1);
+  const chico = selectContextCandidates([item({ id: 'large', content: 'x'.repeat(16000) }), item({ id: 'second' })], new Date('2026-11-02T00:00:00.000Z'), 8000);
+  assert.deepEqual(chico.itemIds, ['second']);
+  assert.equal(chico.omittedCount, 1);
+  const estandar = selectContextCandidates([item({ id: 'large', content: 'x'.repeat(16000) }), item({ id: 'second' })], new Date('2026-11-02T00:00:00.000Z'), 32000);
+  assert.deepEqual(estandar.itemIds, ['large', 'second']);
 });
 
 test('privacy transformer abstracts highly sensitive context instead of forwarding personal details', () => {

@@ -18,6 +18,8 @@ const HomeBackoffice = lazy(() => import('./pages/backoffice/BackofficeHome'))
 const PanelOverview = lazy(() => import('./pages/backoffice/PanelOverview'))
 const PublicarEvaluacion = lazy(() => import('./pages/backoffice/PublicarEvaluacion'))
 const Responder = lazy(() => import('./pages/public/Responder'))
+const Ayuda = lazy(() => import('./pages/public/Ayuda'))
+const Inicio = lazy(() => import('./pages/public/Inicio'))
 const Login = lazy(() => import('./pages/auth/Login'))
 const Register = lazy(() => import('./pages/auth/Register'))
 const ConfiguracionIA = lazy(() => import('./pages/backoffice/ConfiguracionIA'))
@@ -25,6 +27,8 @@ const AnalisisIA = lazy(() => import('./pages/backoffice/AnalisisIA'))
 const ConfiguracionIntegraciones = lazy(() => import('./pages/backoffice/ConfiguracionIntegraciones'))
 const Configuracion = lazy(() => import('./pages/backoffice/Configuracion'))
 const ConfiguracionContexto = lazy(() => import('./pages/backoffice/ConfiguracionContexto'))
+const Uso = lazy(() => import('./pages/backoffice/Uso'))
+const Accionables = lazy(() => import('./pages/backoffice/Accionables'))
 
 // Componente de loading
 const LoadingSpinner = () => (
@@ -67,10 +71,13 @@ function App() {
               <Routes>
                 {/* Rutas públicas */}
                 <Route path="/" element={<FirstRunGate />} />
+                <Route path="/inicio" element={<Inicio />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/registro" element={<Register />} />
                 <Route path="/responder/:token" element={<Responder />} />
                 <Route path="/r/:token" element={<Responder />} />
+                <Route path="/ayuda" element={<Ayuda />} />
+                <Route path="/ayuda/:tema" element={<Ayuda />} />
                 
                 {/* Rutas del backoffice */}
                 <Route path="/backoffice">
@@ -95,6 +102,8 @@ function App() {
                   <Route path="configuracion/integraciones" element={<PrivateRoute><ConfiguracionIntegraciones /></PrivateRoute>} />
                   <Route path="configuracion" element={<PrivateRoute><Configuracion /></PrivateRoute>} />
                   <Route path="configuracion/contexto" element={<PrivateRoute><ConfiguracionContexto /></PrivateRoute>} />
+                  <Route path="uso" element={<PrivateRoute><Uso /></PrivateRoute>} />
+                  <Route path="accionables" element={<PrivateRoute><Accionables /></PrivateRoute>} />
                   <Route path="ia" element={<PrivateRoute><AnalisisIA /></PrivateRoute>} />
                   <Route 
                     path="alta-evaluacion" 

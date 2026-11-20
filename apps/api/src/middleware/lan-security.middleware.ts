@@ -3,9 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 /**
  * LAN security middleware: in desktop LOCAL_NETWORK mode, only loopback clients
  * may access admin/auth/API routes. Non-loopback clients are restricted to:
- * - SPA static assets (handled by express.static, not here)
- * - /responder/:token public respondent page
- * - Public survey GET/POST by tokenPublico
+ * - la página de la encuesta, sus archivos y el envío de la respuesta
  * - /api/health endpoint
  * 
  * Use socket remoteAddress, NOT X-Forwarded-For (to avoid proxy spoofing).
@@ -20,16 +18,27 @@ const isLoopback = (address: string): boolean => {
   return false;
 };
 
-const isPublicRoute = (path: string, method: string): boolean => {
-  // Health check (all methods)
-  if (path === '/api/health') return true;
-  
-  // Public respondent page (GET only)
-  if (method === 'GET' && /^\/responder\/[^/]+$/.test(path)) return true;
-  
-  // Public respondent assets (handled by express.static before this middleware)
-  // /r/:token is handled by backend routes (obtenerRondaPublicaService)
-  
+const ARCHIVOS_DE_LA_ENCUESTA = new Set([
+  '/termometro-runtime.js',
+  '/favicon.ico',
+  '/favicon-32.png',
+  '/favicon-16.png',
+  '/apple-touch-icon.png',
+  '/manifest.webmanifest',
+  '/sw.js',
+]);
+
+/** Lo que un celular de la red puede pedir: la encuesta, sus archivos y el envío. */
+export const esSolicitudPublicaEnRed = (path: string, method: string): boolean => {
+  if (path.includes('..') || path.includes('\\')) return false;
+  const verbo = method.toUpperCase();
+  const lectura = verbo === 'GET' || verbo === 'HEAD';
+  if (path === '/api/health' && lectura) return true;
+  if (verbo === 'POST' && path === '/api/respuestas') return true;
+  if (lectura && /^\/api\/r\/[^/]+$/.test(path)) return true;
+  if (lectura && /^\/(?:r|responder)\/[^/]+$/.test(path)) return true;
+  if (lectura && ARCHIVOS_DE_LA_ENCUESTA.has(path)) return true;
+  if (lectura && /^\/assets\/[A-Za-z0-9._-]+$/.test(path)) return true;
   return false;
 };
 
@@ -48,19 +57,7 @@ export const lanSecurityMiddleware = (req: Request, res: Response, next: NextFun
     return next();
   }
   
-  // Non-loopback clients: allow only public routes
-  if (isPublicRoute(path, method)) {
-    return next();
-  }
-  
-  // Also allow public response submission (POST /api/respuestas with tokenPublico)
-  // This is already protected by publicResponseRateLimit and token validation
-  if (method === 'POST' && path === '/api/respuestas') {
-    return next();
-  }
-  
-  // Also allow GET /r/:token (public survey load by token)
-  if (method === 'GET' && /^\/r\/[^/]+$/.test(path)) {
+  if (esSolicitudPublicaEnRed(path, method)) {
     return next();
   }
   

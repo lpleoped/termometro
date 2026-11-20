@@ -2,12 +2,14 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import HeaderPublico from '../../components/HeaderPublico';
+import InfoAyuda from '../../components/InfoAyuda';
 
 interface Indicador {
   id?: string;
   texto?: string;
   descripcion?: string;
   tipo?: 'cuantitativo' | 'cualitativo';
+  direccion?: 'positiva' | 'negativa';
 }
 
 interface Seccion {
@@ -26,9 +28,27 @@ interface Pregunta {
   descripcion: string;
   seccion: string;
   tipo: 'cuantitativo' | 'cualitativo';
+  direccion: 'positiva' | 'negativa';
 }
 
 const ESCALA = [1, 2, 3, 4, 5] as const;
+
+function tonoEscala(direccion: 'positiva' | 'negativa', valor: number): 'alivia' | 'neutro' | 'preocupa' {
+  const favorable = direccion === 'negativa' ? valor <= 2 : valor >= 4;
+  const preocupa = direccion === 'negativa' ? valor >= 4 : valor <= 2;
+  if (favorable) return 'alivia';
+  if (preocupa) return 'preocupa';
+  return 'neutro';
+}
+
+function significadoEscala(direccion: 'positiva' | 'negativa', valor: number): string {
+  if (direccion === 'negativa' && valor === 5) return 'Esto marcaría que el problema se siente mucho.';
+  if (direccion === 'negativa' && valor === 1) return 'Esto marcaría que el problema casi no se siente.';
+  if (direccion === 'positiva' && valor === 5) return 'Esto marcaría que esto se sostiene.';
+  if (direccion === 'positiva' && valor === 1) return 'Esto marcaría que esto casi no se sostiene.';
+  if (valor === 3) return 'Esto marcaría un punto intermedio.';
+  return direccion === 'negativa' ? 'Esto marcaría que el problema se siente bastante.' : 'Esto marcaría que esto se sostiene en parte.';
+}
 
 function idDe(valor: unknown): string {
   if (typeof valor === 'string') return valor;
@@ -56,7 +76,7 @@ function preguntasDe(evaluacion: Evaluacion): Pregunta[] {
       if (!id || !texto) continue;
       const descripcion =
         typeof indicador.descripcion === 'string' ? indicador.descripcion.trim() : '';
-      preguntas.push({ id, texto, descripcion, seccion: titulo, tipo: indicador.tipo === 'cualitativo' ? 'cualitativo' : 'cuantitativo' });
+      preguntas.push({ id, texto, descripcion, seccion: titulo, tipo: indicador.tipo === 'cualitativo' ? 'cualitativo' : 'cuantitativo', direccion: indicador.direccion === 'negativa' ? 'negativa' : 'positiva' });
     }
   }
   return preguntas;
@@ -116,6 +136,7 @@ export default function ResponderEvaluacion() {
   const [evaluadoNombre, setEvaluadoNombre] = useState('');
   const [preguntas, setPreguntas] = useState<Pregunta[]>([]);
   const [paso, setPaso] = useState(0);
+  const [apoyo, setApoyo] = useState<number | null>(null);
   const [valores, setValores] = useState<Record<string, number>>({});
   const [textos, setTextos] = useState<Record<string, string>>({});
   const [fase, setFase] = useState<'cargando' | 'inicio' | 'error' | 'no-encontrada' | 'vacia' | 'respondiendo' | 'revisando' | 'gracias'>(
@@ -124,8 +145,8 @@ export default function ResponderEvaluacion() {
   const [intento, setIntento] = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [errorEnvio, setErrorEnvio] = useState(false);
-  const [habiaBorrador, setHabiaBorrador] = useState(false);
   const [modoRespuesta, setModoRespuesta] = useState<'anonima' | 'identificada'>('anonima');
+  const [minimoRespuestas, setMinimoRespuestas] = useState(3);
   const [consentimiento, setConsentimiento] = useState(false);
   const [identidad, setIdentidad] = useState({ nombre: '', email: '' });
 
@@ -149,11 +170,12 @@ export default function ResponderEvaluacion() {
         setTitulo(nombre);
         setEvaluadoNombre(typeof instancia.data?.evaluadoNombre === 'string' ? instancia.data.evaluadoNombre.trim() : '');
         setModoRespuesta(instancia.data?.modoRespuesta === 'identificada' ? 'identificada' : 'anonima');
+        const minimo = Number(instancia.data?.minimoAnonimato);
+        setMinimoRespuestas(Number.isInteger(minimo) && minimo >= 1 ? minimo : 3);
         setPreguntas(lista);
         setPaso(borrador.paso);
         setValores(borrador.valores);
         setTextos(borrador.textos);
-        setHabiaBorrador(Object.keys(borrador.valores).length > 0 || Object.keys(borrador.textos).length > 0);
         setFase(lista.length ? 'inicio' : 'vacia');
       } catch (error: unknown) {
         if (cancelado) return;
@@ -166,6 +188,10 @@ export default function ResponderEvaluacion() {
       cancelado = true;
     };
   }, [instanciaId, intento]);
+
+  useEffect(() => {
+    setApoyo(null);
+  }, [paso]);
 
   useEffect(() => {
     if (!['respondiendo', 'revisando'].includes(fase) || !instanciaId) return;
@@ -231,25 +257,25 @@ export default function ResponderEvaluacion() {
       <HeaderPublico />
       <main className="evaluation-page container py-4">
         {fase === 'cargando' && (
-          <div className="evaluation-panel py-5 px-4 text-center" role="status" aria-live="polite">
+          <div className="evaluation-panel text-center" role="status" aria-live="polite">
             <div className="loading-spinner mx-auto mb-3" aria-hidden="true" />
-            <p className="mb-0">Estamos preparando tu evaluación...</p>
+            <p className="mb-0">Estamos preparando las preguntas...</p>
           </div>
         )}
 
         {fase === 'no-encontrada' && (
-          <div className="evaluation-panel py-4 px-3 px-sm-4">
+          <div className="evaluation-panel">
             <p className="evaluation-eyebrow mb-2">Link no disponible</p>
-            <h1 className="h3 mb-3">Esta evaluación ya no está disponible</h1>
+            <h1 className="h3 mb-3">Este link ya no está disponible</h1>
             <p className="mb-4">Revisá que el link esté completo o pedile uno nuevo a la persona que lo compartió.</p>
             <Link className="btn btn-primary w-100 evaluation-primary-action" to="/">Volver al inicio</Link>
           </div>
         )}
 
         {fase === 'error' && (
-          <div>
+          <div className="evaluation-panel">
             <p className="evaluation-eyebrow mb-2">Algo salió mal</p>
-            <h1 className="h3 mb-3">No pudimos abrir esta evaluación</h1>
+            <h1 className="h3 mb-3">No pudimos abrir estas preguntas</h1>
             <p className="mb-4">Puede ser un problema temporal. Intentá de nuevo en unos segundos.</p>
             <button type="button" className="btn btn-primary w-100 evaluation-primary-action" onClick={() => setIntento((n) => n + 1)}>
               Intentar de nuevo
@@ -258,48 +284,40 @@ export default function ResponderEvaluacion() {
         )}
 
         {fase === 'vacia' && (
-          <div className="evaluation-panel py-4 px-3 px-sm-4">
-            <p className="evaluation-eyebrow mb-2">Evaluación no disponible</p>
-            <h1 className="h3 mb-3">Esta evaluación todavía no está lista</h1>
+          <div className="evaluation-panel">
+            <p className="evaluation-eyebrow mb-2">Todavía no</p>
+            <h1 className="h3 mb-3">Estas preguntas todavía no están listas</h1>
             <p className="mb-0">La persona que la creó tiene que agregar preguntas antes de compartirla.</p>
           </div>
         )}
 
         {fase === 'gracias' && (
-          <div className="evaluation-panel evaluation-success py-5 px-4 text-center">
+          <div className="evaluation-panel evaluation-success text-center">
             <div className="evaluation-success-icon" aria-hidden="true">✓</div>
             <p className="evaluation-eyebrow mb-2">Respuesta enviada</p>
             <h1 className="h3">Tu respuesta quedó registrada</h1>
             <p className="mb-2">Gracias por ayudar a entender cómo está el equipo.</p>
-            <p className="small text-muted mb-0">La persona que coordina la evaluación podrá ver el resultado cuando termine la participación.</p>
+            <p className="small text-muted mb-0">Quien coordina va a ver el resultado cuando termine la participación.</p>
           </div>
         )}
 
         {fase === 'inicio' && (
-          <div className="evaluation-panel py-4 px-3 px-sm-4">
-      <p className="evaluation-eyebrow mb-2">Termómetro</p>
-            <h1 className="h3 mb-3">{titulo || 'Evaluación del equipo'}</h1>
-            <p className="lead mb-4">Queremos conocer cómo estás viviendo este momento del equipo.</p>
-            {evaluadoNombre && <p className="mb-3">Esta evaluación es sobre <strong>{evaluadoNombre}</strong>.</p>}
-            <div className="evaluation-meta mb-4" aria-label="Resumen de la evaluación">
-              <span>{preguntas.length} {preguntas.length === 1 ? 'pregunta' : 'preguntas'}</span>
-              <span>Menos de 5 minutos</span>
+          <div className="evaluation-panel">
+            <div className="d-flex align-items-start gap-2 mb-3">
+              <h1 className="h3 mb-0">{titulo || 'Cómo está el equipo'}</h1>
+              <InfoAyuda tema="responder" />
             </div>
-            {habiaBorrador && (
-              <p className="small evaluation-resume-note mb-4" role="status">
-                Tu avance está guardado. Vas a continuar desde la pregunta {paso + 1} de {preguntas.length}.
-              </p>
-            )}
-            <p className="small text-muted mb-4">Vas a responder cada afirmación con una escala del 1 al 5. Tus respuestas se guardan automáticamente en este dispositivo.</p>
-            {modoRespuesta === 'anonima' ? <div className="rounded border p-3 mb-4 bg-light"><strong className="d-block mb-1">Respuesta anónima</strong><span className="small text-muted">No se asociará tu respuesta con tu identidad. El resultado se mostrará de forma agregada.</span></div> : <div className="rounded border p-3 mb-4"><strong className="d-block mb-2">Ronda identificada</strong><input className="form-control mb-2" placeholder="Tu nombre (opcional)" value={identidad.nombre} onChange={(event) => setIdentidad((actual) => ({ ...actual, nombre: event.target.value }))} /><input className="form-control mb-2" type="email" placeholder="Tu email" value={identidad.email} onChange={(event) => setIdentidad((actual) => ({ ...actual, email: event.target.value }))} /><label className="small d-flex gap-2 align-items-start"><input type="checkbox" className="mt-1" checked={consentimiento} onChange={(event) => setConsentimiento(event.target.checked)} /><span>Acepto que mi respuesta quede asociada a mi identidad para esta medición.</span></label></div>}
+            <p className="mb-4">Queremos conocer cómo estás viviendo este momento del equipo.</p>
+            {evaluadoNombre && <p className="mb-3">Las preguntas son sobre <strong>{evaluadoNombre}</strong>.</p>}
+            {modoRespuesta === 'anonima' ? <div className="rounded border p-3 mb-4 bg-light"><strong className="d-block mb-1">Sin nombre</strong><span className="small text-muted">No pedimos tu nombre. Quien coordina ve el resultado agrupado cuando hay al menos {minimoRespuestas} {minimoRespuestas === 1 ? 'respuesta' : 'respuestas'}, y también lee los comentarios. Un comentario puede reconocerte aunque no lleve tu nombre.</span></div> : <div className="rounded border p-3 mb-4"><strong className="d-block mb-2">Con tu nombre</strong><input className="form-control mb-2" placeholder="Tu nombre (opcional)" value={identidad.nombre} onChange={(event) => setIdentidad((actual) => ({ ...actual, nombre: event.target.value }))} /><input className="form-control mb-2" type="email" placeholder="Tu email" value={identidad.email} onChange={(event) => setIdentidad((actual) => ({ ...actual, email: event.target.value }))} /><label className="small d-flex gap-2 align-items-start"><input type="checkbox" className="mt-1" checked={consentimiento} onChange={(event) => setConsentimiento(event.target.checked)} /><span>Acepto que mi respuesta quede asociada a mi identidad para esta medición.</span></label></div>}
             <button type="button" className="btn btn-primary w-100 evaluation-primary-action" onClick={iniciar} disabled={modoRespuesta === 'identificada' && (!consentimiento || !identidad.email.includes('@'))}>
-              {habiaBorrador ? 'Continuar evaluación' : 'Empezar evaluación'}
+              Empezar
             </button>
           </div>
         )}
 
         {fase === 'revisando' && (
-          <div className="evaluation-panel py-4 px-3 px-sm-4">
+          <div className="evaluation-panel">
             <p className="evaluation-eyebrow mb-2">Último paso</p>
             <h1 className="h3 mb-3">Revisá tus respuestas</h1>
             <p className="mb-4">Respondiste {preguntas.length} de {preguntas.length} preguntas. Después de enviar no vas a poder modificarlas.</p>
@@ -312,23 +330,22 @@ export default function ResponderEvaluacion() {
               <button type="button" className="btn btn-primary evaluation-primary-action" onClick={() => void enviar()} disabled={enviando}>
                 {enviando ? 'Enviando respuestas...' : errorEnvio ? 'Intentar de nuevo' : 'Enviar respuestas'}
               </button>
-              <button type="button" className="btn btn-link text-muted" disabled={enviando} onClick={() => setFase('respondiendo')}>Volver a revisar</button>
+              <button type="button" className="btn btn-outline-secondary" disabled={enviando} onClick={() => setFase('respondiendo')}>Volver a revisar</button>
             </div>
           </div>
         )}
 
         {fase === 'respondiendo' && pregunta && (
-          <form onSubmit={esUltima ? revisar : seguir} className="evaluation-panel py-4 px-3 px-sm-4">
-            <div className="d-flex justify-content-between align-items-center gap-3 mb-2">
-              <p className="evaluation-eyebrow mb-0">{titulo || 'Evaluación del equipo'}</p>
-              <span className="small text-muted">{Math.round(((paso + 1) / preguntas.length) * 100)}%</span>
+          <form onSubmit={esUltima ? revisar : seguir} className="evaluation-panel">
+            <div className="evaluation-progress-row">
+              <p className="evaluation-eyebrow mb-0">{titulo || 'Cómo está el equipo'}</p>
+              <span className="evaluation-progress-value">{Math.round(((paso + 1) / preguntas.length) * 100)}%</span>
             </div>
-            <p className="small text-muted mb-2">Pregunta {paso + 1} de {preguntas.length}</p>
+            <p className="evaluation-step">Pregunta {paso + 1} de {preguntas.length}</p>
             <div
-              className="progress mb-4"
-              style={{ height: 8 }}
+              className="progress evaluation-progress"
               role="progressbar"
-              aria-label="Progreso de la evaluación"
+              aria-label="Progreso"
               aria-valuemin={1}
               aria-valuemax={preguntas.length}
               aria-valuenow={paso + 1}
@@ -336,38 +353,39 @@ export default function ResponderEvaluacion() {
             >
               <div
                 className="progress-bar"
-                style={{
-                  width: `${((paso + 1) / preguntas.length) * 100}%`,
-                  backgroundColor: '#374151',
-                }}
+                style={{ width: `${((paso + 1) / preguntas.length) * 100}%` }}
               />
             </div>
-            {pregunta.seccion && <p className="text-muted small mb-2">{pregunta.seccion}</p>}
-            <h1 className="h4" tabIndex={-1}>
+            {pregunta.seccion && <p className="evaluation-section">{pregunta.seccion}</p>}
+            <h1 className="evaluation-question" tabIndex={-1}>
               {pregunta.texto}
             </h1>
             {pregunta.descripcion && <p>{pregunta.descripcion}</p>}
-            {pregunta.tipo === 'cualitativo' ? <><p className="text-muted small mb-2">Compartí una respuesta concreta. Evitá incluir nombres o datos personales de otras personas.</p><textarea className="form-control mb-4" rows={6} maxLength={2000} value={textoActual} onChange={(event) => setTextos((actual) => ({ ...actual, [pregunta.id]: event.target.value }))} disabled={enviando} placeholder="Escribí tu respuesta..." /></> : <><p className="text-muted small mb-2" id="escala-ayuda">Elegí una opción. 1 es el valor más bajo y 5 el más alto.</p>
-            <div className="evaluation-scale-labels" aria-hidden="true"><span>Más bajo</span><span>Más alto</span></div>
-            <div className="d-flex gap-2 mb-4" role="radiogroup" aria-labelledby="escala-ayuda">
+            {pregunta.tipo === 'cualitativo' ? <><p className="text-muted small mb-2">Compartí una respuesta concreta. Evitá incluir nombres o datos personales de otras personas.</p><textarea className="form-control mb-4" rows={6} maxLength={2000} value={textoActual} onChange={(event) => setTextos((actual) => ({ ...actual, [pregunta.id]: event.target.value }))} disabled={enviando} placeholder="Escribí tu respuesta..." /></> : <><p className="text-muted small mb-2" id="escala-ayuda">Elegí una opción. 1 es casi nunca y 5 es casi siempre.</p>
+            <div className="evaluation-scale-labels" aria-hidden="true"><span>Casi nunca</span><span>Casi siempre</span></div>
+            <div className="evaluation-scale" role="radiogroup" aria-labelledby="escala-ayuda">
               {ESCALA.map((valor) => {
                 const elegido = valorActual === valor;
                 return (
                   <button
                     key={valor}
                     type="button"
-                    className={`btn flex-fill evaluation-scale-button ${elegido ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ minHeight: 48 }}
+                    className={`evaluation-scale-button is-${tonoEscala(pregunta.direccion, valor)}${elegido ? ' is-selected' : ''}`}
                     role="radio"
                     aria-checked={elegido}
                     disabled={enviando}
+                    onMouseEnter={() => setApoyo(valor)}
+                    onMouseLeave={() => setApoyo(null)}
+                    onFocus={() => setApoyo(valor)}
+                    onBlur={() => setApoyo(null)}
                     onClick={() => elegir(valor)}
                   >
                     {valor}
                   </button>
                 );
               })}
-            </div></>}
+            </div>
+            <p className="evaluation-scale-meaning" aria-live="polite">{apoyo == null ? 'Apoyá una opción para ver qué significa.' : significadoEscala(pregunta.direccion, apoyo)}</p></>}
             {errorEnvio && (
               <p className="text-danger" role="alert">
                 No se pudo enviar. Probá de nuevo.
@@ -379,7 +397,7 @@ export default function ResponderEvaluacion() {
             {paso > 0 && (
               <button
                 type="button"
-                className="btn btn-link text-muted w-100 mt-2"
+                className="btn btn-outline-secondary w-100 mt-2"
                 disabled={enviando}
                 onClick={() => setPaso((actual) => actual - 1)}
               >

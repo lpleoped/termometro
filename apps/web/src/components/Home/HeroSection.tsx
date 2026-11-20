@@ -1,6 +1,7 @@
 import logoTermometro from '../../assets/termometro-logo.png';
 import graficoBarras from '../../assets/bars.png';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const highlights = [
   ['✓', 'Análisis'],
@@ -10,12 +11,14 @@ const highlights = [
 ];
 
 export default function HeroSection() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="container-fluid py-4" style={{ background: '#fff' }}>
       <div className="row align-items-center justify-content-between g-5">
         <div className="col-lg-6 text-center text-lg-start" data-aos="fade-right" data-aos-delay="100">
           <div className="mb-4">
-            <img src={logoTermometro} width="48" height="48" className="mb-3" alt="Logo Termómetro" />
+            <img src={logoTermometro} width="56" height="56" className="brand-mark brand-mark-hero mb-3" alt="Logo Termómetro" />
             <h1 className="display-5 fw-bold text-primary mb-3">Termómetro</h1>
           </div>
 
@@ -38,7 +41,9 @@ export default function HeroSection() {
           </div>
 
           <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center justify-content-lg-start">
-            <Link to="/login" className="btn btn-primary btn-lg px-4 py-3 fw-medium">Comenzar ahora</Link>
+            <Link to={isAuthenticated ? '/backoffice/home' : '/login'} className="btn btn-primary btn-lg px-4 py-3 fw-medium">
+              {isAuthenticated ? 'Ir al panel' : 'Comenzar ahora'}
+            </Link>
             <button className="btn btn-outline-secondary btn-lg px-4 py-3 fw-medium" onClick={() => document.getElementById('info-section')?.scrollIntoView({ behavior: 'smooth' })}>
               Saber más
             </button>

@@ -1,5 +1,5 @@
 export const LEGACY_COLLECTIONS = ['usuarios', 'equipos', 'evaluaciones', 'instancias', 'respuestas'] as const;
-export const FEATURE_COLLECTIONS = ['aiProviders', 'aiSettings', 'aiAnalyses', 'accionesPlan', 'teamContextItems', 'integrationConnections', 'teamIntegrationSettings'] as const;
+export const FEATURE_COLLECTIONS = ['aiProviders', 'aiSettings', 'aiAnalyses', 'aiUsages', 'accionesPlan', 'teamContextItems', 'integrationConnections', 'teamIntegrationSettings'] as const;
 export const LOCAL_COLLECTIONS = [...LEGACY_COLLECTIONS, ...FEATURE_COLLECTIONS] as const;
 export type LocalCollection = (typeof LOCAL_COLLECTIONS)[number];
 export interface StoredRecord { _id: string; }

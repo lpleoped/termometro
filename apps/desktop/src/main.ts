@@ -12,6 +12,7 @@ import os from 'node:os';
 const PORT = 3210;
 let apiProcess: ChildProcess | undefined;
 let mainWindow: BrowserWindow | undefined;
+if (app.isPackaged) app.setPath('userData', path.join(app.getPath('appData'), 'TermometroDeEquipo'));
 const hasInstanceLock = app.requestSingleInstanceLock();
 if (!hasInstanceLock) app.quit();
 app.on('second-instance', () => { mainWindow?.restore(); mainWindow?.focus(); });
@@ -131,7 +132,6 @@ async function startApi() {
       PORT: String(PORT),
       STORAGE_DRIVER: 'json',
       TERMOMETRO_DESKTOP: 'true',
-      LOCAL_NETWORK: 'true',
       TERMOMETRO_DATA_DIR: dataDir(),
       NODE_ENV: 'production',
       ...(app.isPackaged ? { NODE_PATH: path.join(process.resourcesPath, 'node_modules') } : {}),
@@ -141,7 +141,7 @@ async function startApi() {
     },
     stdio: 'inherit',
   });
-  apiProcess.on('exit', (code) => { if (code && app.isReady()) void dialog.showErrorBox('Termómetro de Equipo', `La API local se cerró con código ${code}.`); });
+  apiProcess.on('exit', (code) => { if (code && app.isReady()) void dialog.showErrorBox('Termómetro', `La API local se cerró con código ${code}.`); });
   await waitForHealth();
 }
 
@@ -152,17 +152,17 @@ async function createWindow() {
   if (!page.ok || !(await page.text()).includes('<div id="root"></div>')) {
     throw new Error('La interfaz de Termómetro no está disponible. Reinstalá la aplicación conservando tus datos.');
   }
-  mainWindow = new BrowserWindow({ title: 'Termómetro de Equipo', width: 1280, height: 820, minWidth: 960, minHeight: 640, webPreferences: { contextIsolation: true, nodeIntegration: false } });
+  mainWindow = new BrowserWindow({ title: 'Termómetro', icon: path.join(__dirname, '../assets/icon.ico'), width: 1280, height: 820, minWidth: 960, minHeight: 640, webPreferences: { contextIsolation: true, nodeIntegration: false } });
   await mainWindow.loadURL(`http://127.0.0.1:${PORT}`);
   commitVersion();
 }
 
-if (hasInstanceLock) app.whenReady().then(() => createWindow().catch((error) => { dialog.showErrorBox('No se pudo iniciar Termómetro de Equipo', error instanceof Error ? error.message : String(error)); app.quit(); }));
+if (hasInstanceLock) app.whenReady().then(() => createWindow().catch((error) => { dialog.showErrorBox('No se pudo iniciar Termómetro', error instanceof Error ? error.message : String(error)); app.quit(); }));
 async function showDiagnostics() {
   try {
     const response = await fetch(`http://127.0.0.1:${PORT}/api/health`);
     const health = await response.json() as { storage?: string; dataDirectory?: string };
-    await dialog.showMessageBox(mainWindow!, { type: 'info', title: 'Diagnóstico técnico', message: 'Termómetro de Equipo está funcionando', detail: `Estado: ${response.ok ? 'correcto' : 'con problemas'}\nAlmacenamiento: ${health.storage || 'desconocido'}\nPuerto local: ${PORT}\nCarpeta de datos: ${health.dataDirectory || dataDir()}\n\nPara compartir una ronda, usá el QR de la pantalla de publicación.`, buttons: ['Cerrar'] });
+    await dialog.showMessageBox(mainWindow!, { type: 'info', title: 'Diagnóstico técnico', message: 'Termómetro está funcionando', detail: `Estado: ${response.ok ? 'correcto' : 'con problemas'}\nAlmacenamiento: ${health.storage || 'desconocido'}\nPuerto local: ${PORT}\nCarpeta de datos: ${health.dataDirectory || dataDir()}\n\nPara compartir una ronda, usá el QR de la pantalla de publicación.`, buttons: ['Cerrar'] });
   } catch (error) {
     await dialog.showMessageBox(mainWindow!, { type: 'error', title: 'Diagnóstico técnico', message: 'La API local no responde.', detail: error instanceof Error ? error.message : String(error), buttons: ['Cerrar'] });
   }

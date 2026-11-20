@@ -1,4 +1,6 @@
 import type { AIAnalysisResponse } from '@termometro/shared';
+import InfoAyuda from '../../InfoAyuda';
+import '../../../pages/backoffice/ConfiguracionIA.css';
 
 interface Props {
   analysis: Pick<AIAnalysisResponse, 'senalesEmocionales' | 'temasRecurrentes'>;
@@ -23,8 +25,11 @@ export default function QualitativeInsights({ analysis }: Props) {
       <div className="ia-qualitative-heading">
         <div>
           <p className="ia-eyebrow mb-1">LECTURA CUALITATIVA</p>
-          <h3 id="qualitative-title">Lo que aparece en los comentarios</h3>
-          <p className="mb-0">Resumen agregado de temas repetidos y señales de tono expresadas por el equipo.</p>
+          <div className="d-flex align-items-center gap-2">
+            <h3 id="qualitative-title" className="mb-0">Lo que aparece en los comentarios</h3>
+            <InfoAyuda tema="lo-escrito" />
+          </div>
+          <p className="mb-0">Señal agregada de lo escrito. No diagnostica emociones ni reemplaza una conversación del equipo.</p>
         </div>
         <span className="ia-private-badge" aria-label="El detalle está cerrado inicialmente">Detalle cerrado</span>
       </div>
@@ -49,7 +54,7 @@ export default function QualitativeInsights({ analysis }: Props) {
 
       <div className="ia-qualitative-charts">
         <article className="ia-mini-chart">
-          <h4>Emociones expresadas</h4>
+          <h4>Señal agregada</h4>
           {emotions.length ? emotions.map((emotion, index) => (
             <div className="ia-bar-row" key={`${emotion.etiqueta}-${index}`}>
               <div className="ia-bar-label"><span>{emotion.etiqueta}</span><span>{Math.round(emotion.intensidad * 100)}%</span></div>
@@ -72,7 +77,7 @@ export default function QualitativeInsights({ analysis }: Props) {
         <summary>Ver detalle cualitativo y evidencias</summary>
         <div className="ia-details-content">
           {!!themes.length && <div><h4>Temas y lectura</h4><ul>{themes.map((theme, index) => <li key={`${theme.tema}-detail-${index}`}><strong>{theme.tema}</strong> · {theme.frecuencia} respuestas · {theme.interpretacion}</li>)}</ul></div>}
-          {!!emotions.length && <div><h4>Señales emocionales</h4><ul>{emotions.map((emotion, index) => <li key={`${emotion.etiqueta}-detail-${index}`}><strong>{emotion.etiqueta}</strong> · {emotion.interpretacion} · confianza {Math.round(emotion.confianza * 100)}%</li>)}</ul></div>}
+          {!!emotions.length && <div><h4>Detalle de la señal</h4><ul>{emotions.map((emotion, index) => <li key={`${emotion.etiqueta}-detail-${index}`}><strong>{emotion.etiqueta}</strong> · {emotion.interpretacion} · confianza {Math.round(emotion.confianza * 100)}%</li>)}</ul></div>}
           <p className="ia-footnote">El detalle es agregado y no muestra comentarios individuales ni identifica participantes.</p>
         </div>
       </details>

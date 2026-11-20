@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import Aviso from '../../Aviso';
 import api from '../../../services/api';
 
 interface Equipo {
@@ -49,6 +50,7 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
   const [errorCarga, setErrorCarga] = useState(false);
   const [equipoCargando, setEquipoCargando] = useState<string | null>(null);
   const [errorRondas, setErrorRondas] = useState<string | null>(null);
+  const [reintentoRondas, setReintentoRondas] = useState<string | null>(null);
 
   useEffect(() => {
     if (!instanciaIdSeleccionada) return;
@@ -61,7 +63,12 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
       return api.get('/instancias', { params: { equipoId: id, estado: 'activa' } }).then((rounds) => {
         if (!cancelado && Array.isArray(rounds.data)) setInstanciasPorEquipo((prev) => ({ ...prev, [id]: rounds.data.map((round: any) => ({ ...round, id: round._id || round.id })) }));
       });
-    }).catch(() => { if (!cancelado) setErrorRondas('No pudimos cargar las rondas. Elegí el equipo para reintentar.'); });
+    }).catch(() => {
+      if (!cancelado) {
+        setReintentoRondas(null);
+        setErrorRondas('No pudimos cargar las rondas.');
+      }
+    });
     return () => { cancelado = true; };
   }, [instanciaIdSeleccionada]);
 
@@ -99,6 +106,7 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
       try {
         setEquipoCargando(equipoId);
         setErrorRondas(null);
+        setReintentoRondas(null);
         setEquipoExpandido(equipoId);
         const res = await api.get(`/instancias?equipoId=${equipoId}&estado=activa`);
         if (!res.data || !Array.isArray(res.data)) {
@@ -119,8 +127,9 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
         });
         
         setInstanciasPorEquipo(prev => ({ ...prev, [equipoId]: instanciasOrdenadas }));
-      } catch (error: any) {
-        setErrorRondas('No pudimos cargar las rondas. Elegí el equipo para reintentar.');
+      } catch {
+        setReintentoRondas(equipoId);
+        setErrorRondas('No pudimos cargar las rondas.');
       } finally {
         setEquipoCargando(null);
       }
@@ -187,23 +196,20 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
       </div>
       
       <div className="sidebar-body p-2">
-        {!isCollapsed && errorRondas && <p className="sidebar-error" role="alert">{errorRondas}</p>}
+        {!isCollapsed && errorRondas && (
+          <Aviso tono="problema" onRetry={reintentoRondas ? () => { void handleEquipoClick(reintentoRondas); } : undefined}>
+            {errorRondas}
+          </Aviso>
+        )}
         {cargando ? (
           <div className="text-center py-3">
             <div className="spinner-border spinner-border-sm text-primary" role="status" />
             <p className="small text-muted mt-2 mb-0">Cargando equipos...</p>
           </div>
         ) : errorCarga ? (
-          <div className="p-2">
-            <p className="small text-danger mb-2">No pudimos cargar tus equipos.</p>
-            <button type="button" className="btn btn-sm btn-outline-primary w-100" onClick={() => window.location.reload()}>
-              Intentar de nuevo
-            </button>
-          </div>
+          <Aviso tono="problema" onRetry={() => window.location.reload()}>No pudimos cargar tus equipos.</Aviso>
         ) : equipos.length === 0 ? (
-          <div className="p-2">
-            <p className="small text-muted mb-0">Todavía no tenés equipos.</p>
-          </div>
+          <Aviso tono="vacio">Todavía no tenés equipos.</Aviso>
         ) : (
           <div className="equipos-list">
             {equipos.map((equipo) => (
@@ -256,7 +262,7 @@ const EquipoSidebar = ({ isCollapsed = false, onToggleCollapse, onCloseMobile }:
                 {/* Lista de instancias del equipo */}
                 {!isCollapsed && equipoExpandido === equipo.id && instanciasPorEquipo[equipo.id] && (
                   <div id={`rondas-${equipo.id}`} className="instancias-list ms-4 mt-2" aria-label={`Rondas de ${equipo.nombre}`}>
-                    {instanciasPorEquipo[equipo.id].length === 0 ? <p className="small text-muted px-2 mb-2">No hay rondas activas.</p> : instanciasPorEquipo[equipo.id].map((instancia) => {
+                    {instanciasPorEquipo[equipo.id].length === 0 ? <Aviso tono="vacio">Todavía no hay una ronda publicada.</Aviso> : instanciasPorEquipo[equipo.id].map((instancia) => {
                       return (
                         <button
                           type="button"

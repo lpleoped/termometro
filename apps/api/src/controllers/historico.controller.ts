@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getHistoricoPorEquipoYEvaluacion } from '../services/historico.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { assertEvaluationOwner, assertTeamOwner } from '../services/authorization.service';
+import { registrarError } from '../observability/errores';
 
 export const obtenerHistoricoEquipoEvaluacion = async (
   req: AuthRequest,
@@ -17,6 +18,7 @@ export const obtenerHistoricoEquipoEvaluacion = async (
     const data = await getHistoricoPorEquipoYEvaluacion(equipoId, evaluacionId, req.user!.id);
     return res.status(200).json(data);
   } catch (error: any) {
+    registrarError('autorizacion', error, { accion: 'historico' });
     return res.status(400).json({ error: error.message });
   }
 };

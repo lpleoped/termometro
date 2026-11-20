@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
 import { crearRespuestaService } from '../services/respuesta.service';
+import { registrarError } from '../observability/errores';
 
 export const crearRespuesta = async (req: Request, res: Response): Promise<Response> => {
   try {
     const resultado = await crearRespuestaService(req.body);
     return res.status(req.body?.idempotencyKey ? 200 : 201).json(resultado);
   } catch (error: any) {
+    registrarError('respuesta', error, { accion: 'crear' });
     return res.status(400).json({ error: error.message || 'Error al crear respuesta' });
   }
 };

@@ -38,7 +38,7 @@ export async function saveAISettings(userId: string, input: unknown): Promise<AI
   return { enabled: row!.enabled, defaultProviderId: row!.defaultProviderId ?? null, budgetPreset: row!.budgetPreset ?? DEFAULT_PRESET };
 }
 
-/** Gate for every outbound AI operation, including explicit connection tests. */
+/** Gate for generation. The connection probe can run while AI is still off. */
 export async function requireAIEnabled(userId: string) {
   const settings = await getAISettings(userId);
   if (!settings.enabled) throw new AIRequestError('AI_DISABLED', 'La IA está apagada. Podés activarla desde Configuración → Inteligencia artificial.', 409);

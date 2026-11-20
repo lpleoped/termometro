@@ -1,4 +1,4 @@
-import { AI_CHECK_VERSION, ANALYSIS_INSTRUCTIONS, QUALITATIVE_ANALYSIS_INSTRUCTIONS, requestCompletion, validateAnalysis } from './ai-completion';
+import { AI_CHECK_VERSION, AIRequestError, ANALYSIS_INSTRUCTIONS, QUALITATIVE_ANALYSIS_INSTRUCTIONS, asAIRequestError, requestCompletion, validateAnalysis } from './ai-completion';
 import { getEstadoActualDashboard } from './dashboard.service';
 import { getHistoricoPorEquipoYEvaluacion } from './historico.service';
 import { getProviderCredentials, saveProvider } from './ai-provider.service';
@@ -9,21 +9,21 @@ import { teamRepository } from '../repositories/team.repository';
 import { responseRepository } from '../repositories/response.repository';
 import { featureRepository } from '../repositories/feature.repository';
 import { newFeature } from '../domain/feature-validation';
-
-import { AIRequestError } from './ai-completion';
-
-
 import { selectTeamContext } from './context-engine.service';
 import { ActionPolicyError, validateContextualActions } from './action-policy.service';
 import { buildContext, datasetHash as hashContext, redactText, type RawQualitativeResponse } from '../context-engineering';
 import { AI_ANALYSIS_SCHEMA_VERSION } from '@termometro/shared';
 import { auditEvent } from './audit.service';
-import { assertInstanceOwner } from './authorization.service';
+import { assertInstanceOwner, assertTeamInstanceOwner } from './authorization.service';
 import { buildHistoricalMemory, HISTORICAL_ANALYSIS_INSTRUCTIONS, assertGroundedEvidence } from './historical-context';
+import { recordarEquipo } from './memoria-accion.service';
+import { hayTextoParaTono, parseTono, TONE_INSTRUCTIONS, TonoInvalido } from '../domain/tono';
+import { anotarUso } from './uso.service';
+import { registrarError } from '../observability/errores';
 
 import { getBudgetLimits } from './ai-budget-presets';
 
-const PROMPT_VERSION = 'v3-history';
+const PROMPT_VERSION = 'v4-memory';
 const analysisAttempts = new Map<string, number[]>();
 const ANALYSIS_WINDOW_MS = 60 * 60 * 1000;
 
@@ -74,7 +74,8 @@ export const generateAnalysis = async (userId: string, input: {
   }
   const equipoId = String(round.equipo);
   const evaluacionId = String((round.evaluacion as any)?._id || round.evaluacion);
-  const teamContext = await selectTeamContext(equipoId);
+  await recordarEquipo(userId, equipoId);
+  const teamContext = await selectTeamContext(equipoId, new Date(), limits.maxContextChars);
   const current = await getEstadoActualDashboard(input.instanciaId);
   const rawResponses = await responseRepository().listByRound(input.instanciaId);
   const evaluacion = await evaluationRepository().findById(evaluacionId);
@@ -124,7 +125,7 @@ export const generateAnalysis = async (userId: string, input: {
   const datasetHash = hashContext(externalContext as any);
   let result: any;
   try {
-    result = validateAnalysis(await requestCompletion(provider.endpoint, provider.modelName, getProviderCredentials(provider), [
+    const crudo = await requestCompletion(provider.endpoint, provider.modelName, getProviderCredentials(provider), [
       { role: 'system', content: ANALYSIS_INSTRUCTIONS },
       { role: 'system', content: QUALITATIVE_ANALYSIS_INSTRUCTIONS },
       { role: 'system', content: HISTORICAL_ANALYSIS_INSTRUCTIONS },
@@ -132,14 +133,20 @@ export const generateAnalysis = async (userId: string, input: {
       { role: 'system', content: 'Analiza todas las respuestas cualitativas y comparalas entre participantes, aunque usen palabras distintas. Devuelve senalesEmocionales con etiqueta, direccion positiva|negativa|mixta|neutral, intensidad, confianza, interpretacion y evidenciaIds; y temasRecurrentes con tema, frecuencia de participantes >=2, interpretacion y evidenciaIds. No diagnostiques salud mental ni identifiques personas.' },
       { role: 'system', content: 'Inclui limitations como array de limites y advertencias del contexto; no presentes nivelConfianza como certeza estadistica.' },
       { role: 'user', content: JSON.stringify(externalContext) },
-    ]));
+    ], false, limits.maxOutputTokens);
+    await anotarUso(userId, 'lectura', provider.modelName, crudo);
+    result = validateAnalysis(crudo);
     provider.status = 'active';
     provider.checkVersion = AI_CHECK_VERSION;
   } catch (error) {
-    provider.status = 'invalid';
-    provider.checkVersion = AI_CHECK_VERSION;
-    await saveProvider(provider);
-    throw error;
+    const known = asAIRequestError(error);
+    if (!(known && known.code === 'AI_PROMPT_ENCODING')) {
+      provider.status = 'invalid';
+      provider.checkVersion = AI_CHECK_VERSION;
+      await saveProvider(provider);
+    }
+    registrarError('ia', known || error, { accion: 'lectura' });
+    throw known || error;
   }
   const evidenceIds = new Set([
     ...context.quantitative.indicators.map(item => item.id),
@@ -164,6 +171,29 @@ export const generateAnalysis = async (userId: string, input: {
   const fuentesTecnicas = [...result.fuentes];
   result.fuentes = fuentesLegibles(fuentesTecnicas, current.indicadores, teamContext.items);
   result.fuentesTecnicas = fuentesTecnicas;
+  const frasesTono = current.privacidad?.protegido ? [] : context.qualitative.responses;
+  if (hayTextoParaTono(frasesTono.length)) {
+    try {
+      const crudoTono = await requestCompletion(provider.endpoint, provider.modelName, getProviderCredentials(provider), [
+        { role: 'system', content: TONE_INSTRUCTIONS },
+        { role: 'user', content: JSON.stringify({ preguntas: [...new Set(frasesTono.map((item) => item.question))], frases: frasesTono.map((item) => ({ id: item.id, texto: item.text })) }) },
+      ], false, limits.maxOutputTokens);
+      await anotarUso(userId, 'tono', provider.modelName, crudoTono);
+      const tono = parseTono(crudoTono, {
+        preguntas: [...new Set(frasesTono.map((item) => item.question))],
+        fraseIds: frasesTono.map((item) => item.id),
+        comentarios: frasesTono.map((item) => item.text),
+      });
+      result.tono = tono;
+    } catch (error) {
+      if (error instanceof TonoInvalido) {
+        registrarError('ia', error, { accion: 'tono' });
+      } else {
+        registrarError('ia', error, { accion: 'tono' });
+        throw error;
+      }
+    }
+  }
   const snapshot = { indiceGlobal: current.privacidad?.protegido || !current.indicadores.some(item => (item.n || 0) > 0) ? null : current.indiceGlobal, participacion: current.participacion };
   const saved = await featureRepository('aiAnalyses').insert(newFeature('aiAnalyses', { userId, providerId: provider._id, instanciaId: input.instanciaId, snapshot, historicalMemory,
     equipoId, evaluacionId, providerKind: provider.kind,
@@ -172,9 +202,17 @@ export const generateAnalysis = async (userId: string, input: {
   return { id: saved._id, creadoEn: saved.creadoEn.toISOString(), instanciaId: input.instanciaId, snapshot, ...result, contextoUtilizado: teamContext.items.map(item => `${item.title} (${item.type})`), contextoOmitido: teamContext.omittedCount };
 };
 
-export const listAnalyses = async (userId: string, instanciaId?: string) => {
-  if (instanciaId) await assertInstanceOwner(userId, instanciaId);
-  const filter = instanciaId ? { userId, instanciaId } : { userId };
+export const listAnalyses = async (userId: string, filtro: { instanciaId?: string; equipoId?: string } = {}) => {
+  let filter: { userId: string; instanciaId?: string | string[] } = { userId };
+  if (filtro.equipoId) {
+    const rondas = await assertTeamInstanceOwner(userId, filtro.equipoId);
+    const ids = rondas.map((ronda) => String(ronda._id));
+    if (!ids.length) return [];
+    filter = { userId, instanciaId: ids };
+  } else if (filtro.instanciaId) {
+    await assertInstanceOwner(userId, filtro.instanciaId);
+    filter = { userId, instanciaId: filtro.instanciaId };
+  }
   const rows = await featureRepository('aiAnalyses').list(filter, { creadoEn: -1 }, 50);
-  return rows.map(row => ({ id: String(row._id), creadoEn: row.creadoEn.toISOString(), instanciaId: row.instanciaId, snapshot: row.snapshot, ...row.result, contextoUtilizado: row.contextItemIds || [] }));
+  return rows.map(row => ({ id: String(row._id), creadoEn: row.creadoEn.toISOString(), instanciaId: row.instanciaId, snapshot: row.snapshot, ...row.result, contextoUtilizado: row.contextItemIds || [], propuestasOmitidas: row.propuestasOmitidas || [] }));
 };

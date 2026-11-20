@@ -82,6 +82,21 @@ test('HTTP local-first: registro → equipo → evaluación → ronda → respue
     }) });
     assert.equal(evaluation.status, 201, JSON.stringify(evaluation.body));
 
+    const hidden = await request(`/evaluaciones/${evaluation.body._id}`);
+    assert.equal(hidden.status, 401);
+    assert.equal(hidden.body.secciones, undefined);
+
+    const other = await request('/auth/register', { method: 'POST', body: JSON.stringify({ nombre: 'Otra persona', email: 'otra@example.com', password: 'clave-segura' }) });
+    assert.equal(other.status, 201, JSON.stringify(other.body));
+    const denied = await request(`/evaluaciones/${evaluation.body._id}`, { headers: { authorization: `Bearer ${other.body.token}` } });
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.secciones, undefined);
+
+    const owned = await request(`/evaluaciones/${evaluation.body._id}`, { headers: auth });
+    assert.equal(owned.status, 200, JSON.stringify(owned.body));
+    assert.equal(owned.body.titulo, 'Pulso HTTP');
+    assert.equal(Array.isArray(owned.body.secciones), true);
+
     const round = await request('/instancias', { method: 'POST', headers: auth, body: JSON.stringify({
       equipoId: team.body._id,
       evaluacionId: evaluation.body._id,
@@ -91,9 +106,13 @@ test('HTTP local-first: registro → equipo → evaluación → ronda → respue
       minimoAnonimato: 1,
     }) });
     assert.equal(round.status, 201, JSON.stringify(round.body));
+    const publicRound = await request(`/r/${round.body.tokenPublico}`);
+    assert.equal(publicRound.status, 200, JSON.stringify(publicRound.body));
+    assert.equal(publicRound.body.titulo, 'Pulso HTTP');
+    assert.equal(Array.isArray(publicRound.body.secciones), true);
 
     const answer = await request('/respuestas', { method: 'POST', body: JSON.stringify({
-      instanciaEvaluacionId: round.body._id,
+      tokenPublico: round.body.tokenPublico,
       respuestas: [{ indicadorId: 'claridad', valor: 5 }, { indicadorId: 'mejora', texto: 'Documentar acuerdos' }],
     }) });
     assert.equal(answer.status, 201, JSON.stringify(answer.body));
@@ -117,11 +136,11 @@ test('HTTP local-first: registro → equipo → evaluación → ronda → respue
 
     const unavailableAI = await request('/ai/settings', { headers: auth });
     assert.equal(unavailableAI.status, 200);
-    assert.deepEqual(unavailableAI.body, { enabled: false, defaultProviderId: null });
+    assert.deepEqual(unavailableAI.body, { enabled: false, defaultProviderId: null, budgetPreset: 'estándar' });
 
     const files = [
       'manifest.json', 'usuarios.json', 'equipos.json', 'evaluaciones.json', 'instancias.json', 'respuestas.json',
-      'aiProviders.json', 'aiSettings.json', 'aiAnalyses.json', 'accionesPlan.json',
+      'aiProviders.json', 'aiSettings.json', 'aiAnalyses.json', 'aiUsages.json', 'accionesPlan.json',
       'teamContextItems.json', 'integrationConnections.json', 'teamIntegrationSettings.json',
     ];
     for (const file of files) assert.equal(fs.existsSync(path.join(dataDirectory, file)), true, `Falta ${file}`);

@@ -1,25 +1,20 @@
 Termómetro de Equipo
 Copyright (c) 2024-2026 Leonardo Pedreira
-Copyright (c) 2024-2026 International Business Machines Corporation (IBM)
 
 This product embodies an original idea and personal creative work of the author.
-The work was created during 2024–2025 and presented in 2025 at IBM as a personal
-initiative (applied AI in software development) before an audience of more
-than 100 people. Development has continued as personal exploration and
-engineering on the author's own time.
+The idea and the first implementation were created in 2024, in another repository,
+on the author's own time, using AI tools and AI-integrated IDEs that were for
+exclusively personal use.
 
-Under the author's employment/contractual framework with IBM, IBM also holds
-ownership interests in the work. Both attributions must be preserved in all
-copies and substantial portions of the Software.
+Under the contract in force during that period, the code belonged to that company.
+The idea and the implementation were shown to a LATAM sector of that company.
+The CTO of that company authorized this open-source publication so that what was
+shown could have value. Public materials must not include real people, clients,
+or anything that could compromise the company. This repository is not presented
+as an official product of that company.
 
-Reference implementations in related private/work repositories (including
-"termometro-api" and "termometro-ui") remain separate. This repository is the
-independent product line for team-climate diagnosis and does not modify those
-reference repositories.
-
-Open-source publication of this product was authorized in writing by the CTO
-of IBM Consulting, provided public materials do not include people, clients,
-or anything that could compromise the company. This is not an official IBM
-product and IBM trademarks are not used as an endorsement.
+Reference implementations in other repositories (including "termometro-api" and
+"termometro-ui") remain separate. This repository is the independent product line
+for team-climate diagnosis and does not modify those reference repositories.
 
 Licensed under the Apache License, Version 2.0. See the LICENSE file.

@@ -75,8 +75,7 @@ export default function Login() {
 
   return (
     <LayoutPublico>
-      <div className="min-vh-100 d-flex align-items-center justify-content-center py-5">
-        <div className="container">
+      <div className="container py-4">
           <div className="row justify-content-center">
             <div className="col-md-6 col-lg-5 col-xl-4">
               {/* Card de login */}
@@ -85,7 +84,7 @@ export default function Login() {
                   {/* Header */}
                   <div className="text-center mb-4">
                     <div className="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle mb-3" style={{ width: '60px', height: '60px' }}>
-                      <img src={logo} width="35" height="35" alt="Logo" />
+                      <img src={logo} width="40" height="40" className="brand-mark brand-mark-auth" alt="Termómetro" />
                     </div>
                     <h2 className="fw-bold text-primary mb-2">Entrá a tu cuenta</h2>
                   </div>
@@ -191,12 +190,8 @@ export default function Login() {
 
                   {/* Enlaces adicionales */}
                   <div className="text-center mt-4">
-                    <p className="text-muted small mb-0">
-                      ¿No tenés cuenta?{' '}
-                      <Link to="/registro" className="text-primary fw-semibold">
-                        Crear cuenta
-                      </Link>
-                    </p>
+                    <p className="text-muted small mb-2">¿No tenés cuenta?</p>
+                    <Link to="/registro" className="btn btn-outline-secondary">Crear cuenta</Link>
                   </div>
                 </div>
               </div>
@@ -204,7 +199,6 @@ export default function Login() {
             </div>
           </div>
         </div>
-      </div>
     </LayoutPublico>
   )
 }

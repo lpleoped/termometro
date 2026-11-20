@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
-import os from 'node:os';
 import type { IInstanciaEvaluacion } from '../models/InstanciaEvaluacion';
 import { assertEvaluationOwner, assertTeamInstanceOwner, assertTeamOwner } from './authorization.service';
 import { evaluationRepository } from '../repositories/evaluation.repository';
+import { direccionesParaCompartir, laRedLocalEstaAbierta } from '../network/red-local';
 import { roundRepository } from '../repositories/round.repository';
+import { log } from '../observability/logger';
 
 interface CrearInstanciaInput {
   equipoId?: string;
@@ -21,7 +22,9 @@ export const crearInstanciaEvaluacionService = async (
   data: CrearInstanciaInput,
   userId: string,
 ): Promise<IInstanciaEvaluacion> => {
-  const { equipoId, alcance = equipoId ? 'equipo' : 'individual', evaluadoNombre, evaluacionId, activadoEn, cantidadEsperada, descripcionLider, modoRespuesta = 'anonima', minimoAnonimato = 1 } = data;
+  const { equipoId, alcance = equipoId ? 'equipo' : 'individual', evaluadoNombre, evaluacionId, activadoEn, cantidadEsperada, descripcionLider, modoRespuesta = 'anonima', minimoAnonimato } = data;
+  const minimoPedido = minimoAnonimato === undefined || minimoAnonimato === null ? 3 : Number(minimoAnonimato);
+  if (!Number.isInteger(minimoPedido) || minimoPedido < 1) throw new Error('El mínimo de respuestas para mostrar resultados debe ser al menos 1');
 
   if (!evaluacionId) throw new Error('Falta la evaluación');
   await assertEvaluationOwner(userId, evaluacionId);
@@ -37,7 +40,7 @@ export const crearInstanciaEvaluacionService = async (
   }
   if (alcance === 'individual' && equipoId) throw new Error('Una evaluación individual no puede tener equipo');
 
-  return roundRepository().insert({
+  const creada = await roundRepository().insert({
     ...(equipoId ? { equipo: equipoId } : {}),
     alcance,
     evaluadoNombre: evaluadoNombre?.trim(),
@@ -47,9 +50,11 @@ export const crearInstanciaEvaluacionService = async (
     descripcionLider,
     estado: 'activa',
     modoRespuesta,
-    minimoAnonimato,
+    minimoAnonimato: minimoPedido,
     tokenPublico: crypto.randomBytes(32).toString('base64url'),
-  }) as unknown as Promise<IInstanciaEvaluacion>;
+  }) as unknown as IInstanciaEvaluacion;
+  log.info('ronda', 'Ronda publicada.', { contexto: { instanciaId: String(creada._id), alcance, modoRespuesta } });
+  return creada;
 };
 
 export const obtenerInstanciaPorIdService = async (id: string, userId: string) => {
@@ -91,29 +96,6 @@ export const obtenerInstanciaPorIdService = async (id: string, userId: string) =
   };
 };
 
-const VIRTUAL_INTERFACE_PATTERNS = [
-  /^vEthernet/i,        // Hyper-V
-  /^docker/i,           // Docker
-  /^br-/,               // Docker bridges
-  /^vboxnet/i,          // VirtualBox
-  /^vmnet/i,            // VMware
-  /^utun/i,             // macOS VPN tunnels
-  /^tun/i,              // VPN tunnels
-  /^tap/i,              // VPN taps
-  /^wsl/i,              // WSL
-  /^lo/i,               // Loopback (already filtered by internal flag)
-];
-
-const isVirtualOrUnreachableInterface = (name: string, address: string): boolean => {
-  // Filter by interface name patterns
-  if (VIRTUAL_INTERFACE_PATTERNS.some(pattern => pattern.test(name))) return true;
-  
-  // Filter link-local addresses (169.254.x.x)
-  if (address.startsWith('169.254.')) return true;
-  
-  return false;
-};
-
 export const obtenerEnlacesPublicosService = async (id: string, userId: string) => {
   const instancia = await roundRepository().findById(id);
   if (!instancia) throw new Error('Instancia no encontrada');
@@ -122,22 +104,14 @@ export const obtenerEnlacesPublicosService = async (id: string, userId: string) 
   if (!instancia.tokenPublico || instancia.estado !== 'activa') throw new Error('La ronda no está disponible');
   const port = Number(process.env.PORT) || 3000;
   
-  interface HostInfo {
-    address: string;
-    interfaceName: string;
+  if (!laRedLocalEstaAbierta()) {
+    return {
+      token: instancia.tokenPublico,
+      urls: [{ url: `http://127.0.0.1:${port}/r/${instancia.tokenPublico}`, interface: 'loopback', address: '127.0.0.1' }],
+    };
   }
-  
-  const hosts: HostInfo[] = [];
-  
-  for (const [name, interfaces] of Object.entries(os.networkInterfaces())) {
-    for (const item of interfaces || []) {
-      if (item.family === 'IPv4' && !item.internal) {
-        if (!isVirtualOrUnreachableInterface(name, item.address)) {
-          hosts.push({ address: item.address, interfaceName: name });
-        }
-      }
-    }
-  }
+
+  const hosts = await direccionesParaCompartir();
   
   // Always include localhost as fallback
   if (hosts.length === 0) {
@@ -169,7 +143,23 @@ export const obtenerRondaPublicaService = async (token: string) => {
   if (!instancia || instancia.estado !== 'activa') throw new Error('Ronda no disponible');
   const evaluacion = await evaluationRepository().findById(String(instancia.evaluacion));
   if (!evaluacion) throw new Error('Evaluación no disponible');
-  return { token, titulo: evaluacion.titulo, secciones: evaluacion.secciones, evaluadoNombre: instancia.evaluadoNombre || '', modoRespuesta: instancia.modoRespuesta, minimoAnonimato: instancia.minimoAnonimato ?? 1 };
+  return {
+    token,
+    titulo: evaluacion.titulo,
+    secciones: (evaluacion.secciones || []).map((seccion) => ({
+      titulo: seccion.titulo,
+      indicadores: (seccion.indicadores || []).map((indicador: { id: string; texto: string; descripcion?: string; tipo?: string; direccion?: string }) => ({
+        id: indicador.id,
+        texto: indicador.texto,
+        ...(indicador.descripcion ? { descripcion: indicador.descripcion } : {}),
+        tipo: indicador.tipo === 'cualitativo' ? 'cualitativo' : 'cuantitativo',
+        direccion: indicador.direccion === 'negativa' ? 'negativa' : 'positiva',
+      })),
+    })),
+    evaluadoNombre: instancia.evaluadoNombre || '',
+    modoRespuesta: instancia.modoRespuesta,
+    minimoAnonimato: instancia.minimoAnonimato ?? 1,
+  };
 };
 
 export const cerrarInstanciaEvaluacionService = async (id: string, userId: string) => {
@@ -179,6 +169,7 @@ export const cerrarInstanciaEvaluacionService = async (id: string, userId: strin
   else await assertEvaluationOwner(userId, String(current.evaluacion));
   const updated = await roundRepository().updateState(id, 'cerrada');
   if (!updated) throw new Error('Instancia no encontrada');
+  log.info('ronda', 'Ronda cerrada.', { contexto: { instanciaId: id } });
   return updated;
 };
 
@@ -190,7 +181,7 @@ export const listarInstanciasPorEquipoService = async (equipoId: string, userId:
 
   for (const instancia of instancias) {
     if (!instancia.evaluacion) {
-      console.warn(`Instancia ${instancia._id} ignorada: evaluación nula o eliminada.`);
+      log.warn('ronda', 'Instancia ignorada: evaluación nula o eliminada.', { codigo: 'EVALUACION_AUSENTE', contexto: { instanciaId: String(instancia._id) } });
       continue;
     }
     const evalId = String((instancia.evaluacion as any)?._id ?? instancia.evaluacion);
@@ -202,8 +193,5 @@ export const listarInstanciasPorEquipoService = async (equipoId: string, userId:
   }
 
   const resultado = Array.from(instanciasMap.values());
-  if (resultado.length === 0) {
-    throw new Error('No se encontraron instancias válidas para el equipo solicitado.');
-  }
   return resultado;
 };

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getEstadoActualDashboard } from '../services/dashboard.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { assertInstanceOwner } from '../services/authorization.service';
+import { registrarError } from '../observability/errores';
 
 export const obtenerEstadoActualEquipo = async (req: AuthRequest, res: Response) => {
   try {
@@ -10,6 +11,7 @@ export const obtenerEstadoActualEquipo = async (req: AuthRequest, res: Response)
     const resultado = await getEstadoActualDashboard(String(req.params.instanciaId));
     return res.status(200).json(resultado);
   } catch (error: any) {
+    registrarError('autorizacion', error, { accion: 'estado-actual' });
     return res.status(404).json({ error: error.message });
   }
 };

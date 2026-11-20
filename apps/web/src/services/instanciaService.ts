@@ -29,3 +29,5 @@ export const getInstanciaById = async (instanciaId: string) => {
 };
 
 export const getEnlacesPublicos = async (instanciaId: string) => (await api.get(`/instancias/${instanciaId}/enlaces-publicos`)).data;
+
+export const abrirRedLocal = async () => (await api.post('/red-local')).data as { listening: 'lan'; addresses: string[] };

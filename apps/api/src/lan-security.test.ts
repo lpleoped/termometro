@@ -13,6 +13,7 @@
 
 import assert from 'node:assert';
 import { Request, Response, NextFunction } from 'express';
+import { esSolicitudPublicaEnRed } from './middleware/lan-security.middleware';
 
 // Mock Express types for testing
 type MockRequest = Partial<Request> & {
@@ -38,13 +39,7 @@ const isLoopback = (address: string): boolean => {
   return false;
 };
 
-const isPublicRoute = (path: string, method: string): boolean => {
-  if (path === '/api/health') return true;
-  if (method === 'GET' && /^\/responder\/[^/]+$/.test(path)) return true;
-  if (method === 'POST' && path === '/api/respuestas') return true;
-  if (method === 'GET' && /^\/r\/[^/]+$/.test(path)) return true;
-  return false;
-};
+const isPublicRoute = esSolicitudPublicaEnRed;
 
 // Test 1: Loopback detection
 const testLoopbackDetection = () => {
@@ -68,7 +63,11 @@ console.log('✓ Test 1: Loopback detection');
 // Test 2: Public route detection
 const testPublicRouteDetection = () => {
   assert.strictEqual(isPublicRoute('/api/health', 'GET'), true, '/api/health is public');
-  assert.strictEqual(isPublicRoute('/api/health', 'POST'), true, '/api/health is public (any method)');
+  assert.strictEqual(isPublicRoute('/api/health', 'POST'), false, '/api/health POST is not public');
+  assert.strictEqual(isPublicRoute('/api/r/abc123', 'GET'), true, 'GET /api/r/:token is public');
+  assert.strictEqual(isPublicRoute('/assets/index-D9s1WVYy.js', 'GET'), true, 'survey asset is public');
+  assert.strictEqual(isPublicRoute('/termometro-runtime.js', 'GET'), true, 'runtime script is public');
+  assert.strictEqual(isPublicRoute('/assets/../app.js', 'GET'), false, 'asset traversal is blocked');
   
   assert.strictEqual(isPublicRoute('/responder/abc123', 'GET'), true, '/responder/:token GET is public');
   assert.strictEqual(isPublicRoute('/responder/f732e3eb-ed0f-47c2-843b-831f5c3a6c7a', 'GET'), true, '/responder/:token with UUID is public');

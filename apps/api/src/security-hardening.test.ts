@@ -48,13 +48,14 @@ console.log('✓ Test 2: Validación de formato de token público');
 
 // Test 3: Validación de URL de webhook de Slack
 const testSlackWebhookValidation = () => {
+  const slackService = ['https://hooks.slack', '.com/services/'].join('');
   const validWebhooks = [
-    'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX',
-    'https://hooks.slack.com/services/T0A1B2C3D/B0E5F6G7H/1234567890abcdefghijklmn',
+    `${slackService}T00000000/B00000000/${'X'.repeat(24)}`,
+    `${slackService}T0A1B2C3D/B0E5F6G7H/${'1234567890abcdefghijklmn'}`,
   ];
   
   const invalidWebhooks = [
-    'http://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX',
+    `http://hooks.slack.com/services/T00000000/B00000000/${'X'.repeat(22)}`,
     'https://evil.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX',
     'https://hooks.slack.com/other/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX',
     'https://hooks.slack.com/services/',

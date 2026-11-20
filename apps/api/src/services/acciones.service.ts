@@ -4,6 +4,7 @@ import type { EstadoAccion, HorizonteAccion } from '@termometro/shared';
 import { auditEvent } from './audit.service';
 import { generateAnalysis } from './ai-analysis.service';
 import { assertInstanceOwner } from './authorization.service';
+import { recordarEquipo } from './memoria-accion.service';
 import type { AccionPlanInput } from '@termometro/shared';
 
 import { validRecordId } from '../domain/feature-records';
@@ -51,7 +52,10 @@ export const agregarAccionPlan = async (userId: string, input: AccionPlanInput) 
     const proposal = Number.isInteger(input.propuestaIndice) ? analysis?.result.accionesContextuales?.[input.propuestaIndice!] : undefined;
     if (!proposal) throw new Error('La propuesta de IA no pertenece a esta ronda o ya no está disponible.');
     propuestaOriginal = proposal.descripcion;
-    evidenciaIds = proposal.evidenceIds;
+    const pedidas = input.evidenciaIds?.length ? input.evidenciaIds : proposal.evidenceIds;
+    const permitidas = new Set(proposal.evidenceIds);
+    if (pedidas.some((id) => !permitidas.has(id))) throw new Error('Los indicadores objetivo tienen que salir de la propuesta.');
+    evidenciaIds = pedidas;
   } else if (input.propuestaIndice !== undefined) throw new Error('La propuesta requiere un análisis de origen.');
   if (input.adaptadaDe) {
     const source = await featureRepository('accionesPlan').find({ _id: input.adaptadaDe });
@@ -67,8 +71,30 @@ export const agregarAccionPlan = async (userId: string, input: AccionPlanInput) 
 };
 
 export const listarAccionesPorInstancia = async (userId: string, instanciaId: string) => {
-  await puedeGestionar(userId, instanciaId);
-  return featureRepository('accionesPlan').list({ instanciaEvaluacion: instanciaId }, { creadaEn: -1 });
+  const ronda = await puedeGestionar(userId, instanciaId);
+  const equipoId = String(ronda.equipo || '');
+  if (!equipoId) return featureRepository('accionesPlan').list({ instanciaEvaluacion: instanciaId }, { creadaEn: -1 });
+  const delEquipo = await recordarEquipo(userId, equipoId);
+  return delEquipo.filter((accion) => String(accion.instanciaEvaluacion) === instanciaId);
+};
+
+export const listarAccionesPorEquipo = async (userId: string, equipoId: string) => recordarEquipo(userId, equipoId);
+
+export const omitirPropuestaLectura = async (userId: string, analisisId: string, indice: number) => {
+  if (!validRecordId(analisisId) || !Number.isInteger(indice) || indice < 0) throw new Error('Esa propuesta no está en la lectura.');
+  const analysis = await featureRepository('aiAnalyses').find({ _id: analisisId, userId });
+  if (!analysis) throw new Error('Lectura no encontrada');
+  await puedeGestionar(userId, String(analysis.instanciaId));
+  const propuestas = analysis.result.accionesContextuales || [];
+  if (indice >= propuestas.length) throw new Error('Esa propuesta no está en la lectura.');
+  const adoptada = await featureRepository('accionesPlan').find({ analisisId, propuestaIndice: indice });
+  if (adoptada) throw new Error('Esa propuesta ya es una acción. Dejarla pasar no la modifica.');
+  const actuales = analysis.propuestasOmitidas || [];
+  if (!actuales.includes(indice)) {
+    analysis.propuestasOmitidas = [...actuales, indice];
+    await featureRepository('aiAnalyses').save(analysis);
+  }
+  return analysis.propuestasOmitidas || [];
 };
 
 export const cambiarEstadoAccion = async (userId: string, actionId: string, siguiente: EstadoAccion) => {
@@ -104,7 +130,9 @@ export const completarCheckInAccion = async (userId: string, actionId: string, h
   if (resultado) checkIn.resultado = { indiceAnterior: resultado.indiceAnterior, indicePosterior: resultado.indicePosterior, delta: accion.resultado?.delta };
   const saved = await featureRepository('accionesPlan').save(accion);
   auditEvent('action.checkin_completed', { actionId, userId, horizonte });
-  return saved;
+  const equipoId = String((await puedeGestionar(userId, String(saved.instanciaEvaluacion))).equipo || '');
+  if (!equipoId) return saved;
+  return (await recordarEquipo(userId, equipoId)).find((item) => String(item._id) === String(saved._id)) || saved;
 };
 
 // Legacy callers also respect the central switch and default connection.

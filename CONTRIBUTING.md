@@ -38,14 +38,21 @@ El proyecto usa **npm workspaces** con tres módulos principales:
 ### Ejecutar en modo desarrollo
 
 ```bash
-# API + Web en modo dev (hot reload)
+# Web local con recarga: ingreso y Mongo. No cambia el .env.
 npm run dev
 
-# Solo API
+# La misma web, compilada
+npm run build
+npm run start
+
+# Solo API de la web local
 npm run dev:api
 
 # Solo web
 npm run dev:web
+
+# Experiencia de una sola computadora (JSON, sin Mongo)
+npm run local
 
 # Desktop (compila todo y abre Electron)
 npm run desktop
