@@ -1,7 +1,7 @@
 {
   "name": "@termometro/desktop",
   "private": true,
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Termómetro de Equipo — diagnóstico de equipos",
   "main": "dist/main.js",
   "scripts": {
@@ -23,8 +23,10 @@
     "productName": "Termómetro",
     "executableName": "Termometro",
     "artifactName": "Termometro-de-Equipo-Setup-${version}.${ext}",
+    "compression": "store",
     "asar": true,
     "npmRebuild": false,
+    "compression": "store",
     "files": [
       "dist/**/*",
       "assets/icon.ico",
