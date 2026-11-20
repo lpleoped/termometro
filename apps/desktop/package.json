@@ -26,7 +26,6 @@
     "compression": "store",
     "asar": true,
     "npmRebuild": false,
-    "compression": "store",
     "files": [
       "dist/**/*",
       "assets/icon.ico",
