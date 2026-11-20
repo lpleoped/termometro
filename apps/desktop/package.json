@@ -1,7 +1,7 @@
 {
   "name": "@termometro/desktop",
   "private": true,
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "Termómetro de Equipo — diagnóstico de equipos",
   "main": "dist/main.js",
   "scripts": {
@@ -63,7 +63,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "include": "installer-firewall.nsh"
+      "include": "installer-firewall.nsh",
+      "differentialPackage": false
     },
     "directories": {
       "output": "release"
