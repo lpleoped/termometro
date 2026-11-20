@@ -31,11 +31,12 @@ for (const driver of ['json', 'mongo']) test('Paridad completa: ' + driver, { ti
   process.env.AI_ALLOW_PRIVATE_ENDPOINTS = 'true';
   process.env.NODE_ENV = 'test';
   const originalPost = axios.post;
-  let appServer, providerServer;
+  let appServer, providerServer, mongoConectado = false;
   try {
     if (driver === 'mongo') {
       try {
         await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017', { dbName, serverSelectionTimeoutMS: 8000 });
+        mongoConectado = true;
       } catch (error) {
         fs.rmSync(root, { recursive: true, force: true });
         t.skip('Mongo no disponible para paridad: ' + (error instanceof Error ? error.message : error));
@@ -181,7 +182,7 @@ for (const driver of ['json', 'mongo']) test('Paridad completa: ' + driver, { ti
   } finally {
     axios.post = originalPost;
     for (const server of [appServer,providerServer]) if (server) { server.closeAllConnections(); await new Promise(resolve=>server.close(resolve)); }
-    if (driver === 'mongo') {
+    if (mongoConectado) {
       assert.equal(mongoose.connection.name,dbName); assert.match(dbName,/^termometro_parity_test_[a-f0-9]{16}$/);
       await mongoose.connection.dropDatabase(); await mongoose.disconnect();
     }
